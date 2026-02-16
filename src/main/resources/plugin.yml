@@ -1,0 +1,4 @@
+name: LoginBonusPL
+version: '1.0-SNAPSHOT'
+main: io.github.itokagimaru.loginBonusPL.LoginBonusPL
+api-version: '1.21'
