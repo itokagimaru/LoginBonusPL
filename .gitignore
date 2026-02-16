@@ -1,0 +1,9 @@
+.idea/
+.vscode/
+.gradle/
+build/
+.kotlin/
+bin/
+run/
+out/
+libs/
