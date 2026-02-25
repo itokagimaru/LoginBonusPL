@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id("xyz.jpenilla.run-paper") version "2.3.1"
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 group = 'io.github.itokagimaru'
@@ -12,10 +13,16 @@ repositories {
         name = "papermc-repo"
         url = "https://repo.papermc.io/repository/maven-public/"
     }
+    maven {
+        url = uri("https://repo.lucko.me/")
+    }
+
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
+    implementation ("com.zaxxer:HikariCP:5.1.0")
+    compileOnly("net.luckperms:api:5.5")
 }
 
 tasks {
@@ -24,6 +31,13 @@ tasks {
         // This is the only required configuration besides applying the plugin.
         // Your plugin's jar (or shadowJar if present) will be used automatically.
         minecraftVersion("1.21")
+    }
+    shadowJar {
+        relocate("com.zaxxer.hikari", "io.github.itokagimaru.loginBonusPL.libs.hikari")
+        archiveClassifier.set('')
+    }
+    build {
+        dependsOn shadowJar
     }
 }
 

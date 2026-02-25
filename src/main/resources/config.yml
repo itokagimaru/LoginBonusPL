@@ -1,0 +1,7 @@
+database:
+  host: localhost
+  port: 3306
+  name: login_bonus
+  username: root
+  password: password
+  pool-size: 10

@@ -2,3 +2,15 @@ name: LoginBonusPL
 version: '1.0-SNAPSHOT'
 main: io.github.itokagimaru.loginBonusPL.LoginBonusPL
 api-version: '1.21'
+permissions:
+  loginbonus.op:
+    default: op
+
+commands:
+  loginbonusop:
+    description: loginbonusを編集したりするためのコマンド
+    usage: /loginbonusop <value>
+    permission: loginbonus.op
+  loginbonus:
+    description: loginbonusを受け取ったり内容を確認するためのコマンド
+    usage: /loginbonus <value>
