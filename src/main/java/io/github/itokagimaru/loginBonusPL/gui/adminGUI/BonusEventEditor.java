@@ -1,8 +1,8 @@
-package io.github.itokagimaru.loginBonusPL.gui.adominGUI;
+package io.github.itokagimaru.loginBonusPL.gui.adminGUI;
 
 import io.github.itokagimaru.loginBonusPL.LoginBonusPL;
 import io.github.itokagimaru.loginBonusPL.gui.BaseGuiHolder;
-import io.github.itokagimaru.loginBonusPL.gui.adominGUI.anvilGUI.NamingAnvilGUI;
+import io.github.itokagimaru.loginBonusPL.gui.adminGUI.anvilGUI.NamingAnvilGUI;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusEvent;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusManager;
 import net.kyori.adventure.text.Component;

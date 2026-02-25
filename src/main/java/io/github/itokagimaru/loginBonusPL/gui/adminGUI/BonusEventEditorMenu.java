@@ -1,4 +1,4 @@
-package io.github.itokagimaru.loginBonusPL.gui.adominGUI;
+package io.github.itokagimaru.loginBonusPL.gui.adminGUI;
 
 import io.github.itokagimaru.loginBonusPL.LoginBonusPL;
 import io.github.itokagimaru.loginBonusPL.gui.BaseGuiHolder;

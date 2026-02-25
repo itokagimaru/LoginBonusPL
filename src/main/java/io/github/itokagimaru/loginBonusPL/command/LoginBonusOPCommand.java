@@ -1,6 +1,6 @@
 package io.github.itokagimaru.loginBonusPL.command;
 
-import io.github.itokagimaru.loginBonusPL.gui.adominGUI.MainMenu;
+import io.github.itokagimaru.loginBonusPL.gui.adminGUI.MainMenu;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusEvent;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusManager;
 import io.github.itokagimaru.loginBonusPL.loginBonus.PlayerLoginProgress;
@@ -165,6 +165,7 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
                         }
                         try {
                             loginBonusManager.deletePlayerLoginProgress(target.getUniqueId(), targetEvent);
+                            return true;
                         } catch (SQLException e) {
                             player.sendMessage(Component.text(target.getName() + " の " + targetEvent.getName() + "におけるログイン進捗の削除に失敗しました: " + e.getMessage()).color(NamedTextColor.YELLOW));
                         }

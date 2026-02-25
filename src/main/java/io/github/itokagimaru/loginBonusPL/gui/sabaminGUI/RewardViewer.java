@@ -1,5 +1,6 @@
 package io.github.itokagimaru.loginBonusPL.gui.sabaminGUI;
 
+import io.github.itokagimaru.loginBonusPL.LoginBonusPL;
 import io.github.itokagimaru.loginBonusPL.gui.BaseGuiHolder;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusEvent;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusManager;
@@ -123,6 +124,8 @@ public class RewardViewer extends BaseGuiHolder {
         if (!closeFlag) return;
         closeFlag = false;
         RewardCalendar rewardCalendar = new RewardCalendar(loginBonusManager, loginBonusEvent);
-        player.openInventory(rewardCalendar.getInventory());
+        Bukkit.getScheduler().runTask(LoginBonusPL.getInstance(), () -> {
+            player.openInventory(rewardCalendar.getInventory());
+        });
     }
 }

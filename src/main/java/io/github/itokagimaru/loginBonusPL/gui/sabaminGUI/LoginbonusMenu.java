@@ -75,7 +75,7 @@ public class LoginbonusMenu extends BaseGuiHolder {
                     meta.customName(Component.text(loginBonus.getName()));
                     meta.lore(List.of(
                             Component.text("左クリック:報酬カレンダーを開く").color(NamedTextColor.WHITE),
-                            Component.text("shift + 左クリック:今日の報酬を受け取る").color(NamedTextColor.RED))
+                            Component.text("shift + 左クリック:今日の報酬を受け取る").color(NamedTextColor.YELLOW))
                     );
                     meta.getPersistentDataContainer().set(iconKey, PersistentDataType.STRING, IconID.BONUS_ICON.getValue());
                     meta.getPersistentDataContainer().set(eventKey, PersistentDataType.INTEGER, loginBonus.getId());

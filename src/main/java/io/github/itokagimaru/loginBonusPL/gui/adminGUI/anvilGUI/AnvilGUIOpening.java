@@ -1,4 +1,4 @@
-package io.github.itokagimaru.loginBonusPL.gui.adominGUI.anvilGUI;
+package io.github.itokagimaru.loginBonusPL.gui.adminGUI.anvilGUI;
 
 import org.bukkit.entity.Player;
 

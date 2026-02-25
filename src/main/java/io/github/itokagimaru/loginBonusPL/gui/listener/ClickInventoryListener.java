@@ -1,7 +1,7 @@
 package io.github.itokagimaru.loginBonusPL.gui.listener;
 import io.github.itokagimaru.loginBonusPL.gui.BaseGuiHolder;
-import io.github.itokagimaru.loginBonusPL.gui.adominGUI.anvilGUI.AnvilGUIOpening;
-import io.github.itokagimaru.loginBonusPL.gui.adominGUI.anvilGUI.NamingAnvilGUI;
+import io.github.itokagimaru.loginBonusPL.gui.adminGUI.anvilGUI.AnvilGUIOpening;
+import io.github.itokagimaru.loginBonusPL.gui.adminGUI.anvilGUI.NamingAnvilGUI;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
