@@ -1,6 +1,7 @@
 package io.github.itokagimaru.loginBonusPL.gui.sabaminGUI;
 
 import io.github.itokagimaru.loginBonusPL.gui.BaseGuiHolder;
+import io.github.itokagimaru.loginBonusPL.loginBonus.AltAccountService;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusEvent;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusManager;
 import io.github.itokagimaru.loginBonusPL.loginBonus.PlayerLoginProgress;
@@ -14,15 +15,12 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.sql.SQLException;
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 public class LoginbonusMenu extends BaseGuiHolder {
     LoginBonusManager loginBonusManager;
+    AltAccountService altAccountService;
     NamespacedKey iconKey = new NamespacedKey("loginbonus", "loginbonusmenu_icon");
     NamespacedKey eventKey = new NamespacedKey("loginbonus", "loginbonusmenu_event");
 
@@ -46,8 +44,9 @@ public class LoginbonusMenu extends BaseGuiHolder {
         }
     }
 
-    public LoginbonusMenu(LoginBonusManager loginBonusManager) {
+    public LoginbonusMenu(LoginBonusManager loginBonusManager, AltAccountService altAccountService) {
         this.loginBonusManager = loginBonusManager;
+        this.altAccountService = altAccountService;
         inv = Bukkit.createInventory(this, INV_SIZE, Component.text("開催中の LoginBonus 一覧").color(NamedTextColor.BLUE));
         setup();
     }

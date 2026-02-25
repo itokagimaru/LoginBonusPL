@@ -8,10 +8,7 @@ import org.bukkit.inventory.ItemStack;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class LoginBonusEvent {
 
@@ -131,7 +128,7 @@ public class LoginBonusEvent {
     public int getMaxDayCount() {
         return maxDayCount;
     }
-    public void giveReward(Player player, LoginBonusManager loginBonusManager) {
+    public void giveReward(Player player, LoginBonusManager loginBonusManager, AltAccountService altAccountService) {
         PlayerLoginProgress loginProgress;
         try {
             loginProgress = loginBonusManager.getOrCreatePlayerLoginProgress(player.getUniqueId(), this);
@@ -153,15 +150,16 @@ public class LoginBonusEvent {
             loginProgress.setLastLoginDate(LocalDate.now());
             try {
                 loginBonusManager.updatePlayerLoginProgress(loginProgress.getUuid(), loginProgress);
+                updatePlayerLoginProgressForAltAccount(altAccountService.getAltAccountList(player.getUniqueId()), loginProgress, loginBonusManager);
             } catch (SQLException e) {
                 player.sendMessage(Component.text("報酬の受け取りに失敗しました").color(NamedTextColor.RED));
                 return;
             }
-            giveReward(loginProgress.getTotalLoginDays(), player);
+            giveRewardItem(loginProgress.getTotalLoginDays(), player);
         }
     }
 
-    private void giveReward(int day, Player player) {
+    private void giveRewardItem(int day, Player player) {
         if (this.getMaxDayCount() < day) return;
         List<ItemStack> items = rewards.get(day);
         if (countEmptySlots(player) < items.size()) {
@@ -188,5 +186,15 @@ public class LoginBonusEvent {
         }
 
         return count;
+    }
+
+    private void updatePlayerLoginProgressForAltAccount(List<UUID> altAccountList, PlayerLoginProgress loginProgress, LoginBonusManager loginBonusManager) throws SQLException {
+        for (UUID uuid : altAccountList) {
+            PlayerLoginProgress altProgress = loginBonusManager.getOrCreatePlayerLoginProgress(uuid, this);
+            altProgress.setLastLoginDate(loginProgress.getLastLoginDate());
+            altProgress.setTotalLoginDays(loginProgress.getTotalLoginDays());
+            altProgress.setContinuousDays(loginProgress.getContinuousDays());
+            loginBonusManager.updatePlayerLoginProgress(uuid, altProgress);
+        }
     }
 }

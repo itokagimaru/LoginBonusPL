@@ -1,5 +1,6 @@
 package io.github.itokagimaru.loginBonusPL;
 
+import io.github.itokagimaru.loginBonusPL.MySQL.DAO.ConnectionLogDAO;
 import io.github.itokagimaru.loginBonusPL.MySQL.DAO.LoginBonusEventDAO;
 import io.github.itokagimaru.loginBonusPL.MySQL.DAO.PlayerLoginDAO;
 import io.github.itokagimaru.loginBonusPL.MySQL.DAO.RewardDAO;
@@ -10,6 +11,7 @@ import io.github.itokagimaru.loginBonusPL.command.LoginBonusOPCommand;
 import io.github.itokagimaru.loginBonusPL.gui.listener.ClickInventoryListener;
 import io.github.itokagimaru.loginBonusPL.gui.listener.CloseInventoryListeners;
 import io.github.itokagimaru.loginBonusPL.listener.PlayerJoinListener;
+import io.github.itokagimaru.loginBonusPL.loginBonus.AltAccountService;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusManager;
 import io.github.itokagimaru.loginBonusPL.servise.LoginBonusService;
 import net.luckperms.api.LuckPerms;
@@ -26,7 +28,8 @@ import java.sql.SQLException;
 
 public final class LoginBonusPL extends JavaPlugin {
 
-    private HikariManager hikariManager;
+    private HikariManager loginBonusHikariManager;
+    private HikariManager altAccountHikariManager;
     private static LoginBonusPL instance;
     private LuckPerms luckPerms;
     private LoginBonusManager loginBonusManager;
@@ -38,27 +41,46 @@ public final class LoginBonusPL extends JavaPlugin {
         saveDefaultConfig();
 
         // config読み込み
-        String host = getConfig().getString("database.host");
-        int port = getConfig().getInt("database.port");
-        String name = getConfig().getString("database.name");
-        String username = getConfig().getString("database.username");
-        String password = getConfig().getString("database.password");
-        int poolSize = getConfig().getInt("database.pool-size");
+        String bonusHost = getConfig().getString("loginBonusDatabase.host");
+        int bonusPort = getConfig().getInt("loginBonusDatabase.port");
+        String bonusName = getConfig().getString("loginBonusDatabase.name");
+        String bonusUsername = getConfig().getString("loginBonusDatabase.username");
+        String bonusPassword = getConfig().getString("loginBonusDatabase.password");
+        int bonusPoolSize = getConfig().getInt("loginBonusDatabase.pool-size");
+
+        boolean altAccountEnabled = getConfig().getBoolean("loginBonusDatabase.enabled");
+        String altAccountHost = getConfig().getString("altAccountDatabase.host");
+        int altAccountPort = getConfig().getInt("altAccountDatabase.port");
+        String altAccountName = getConfig().getString("altAccountDatabase.name");
+        String altAccountUsername = getConfig().getString("altAccountDatabase.username");
+        String altAccountPassword = getConfig().getString("altAccountDatabase.password");
+        int altAccountPoolSize = getConfig().getInt("altAccountDatabase.pool-size");
+        String altAccountTableName = getConfig().getString("altAccountDatabase.table-name");
+        String altAccountColumnUUIDName = getConfig().getString("altAccountDatabase.column.uuid");
+        String altAccountColumnIPName = getConfig().getString("altAccountDatabase.column.ip");
 
         // Hikari初期化
-        hikariManager = new HikariManager(
-                host,
-                port,
-                name,
-                username,
-                password,
-                poolSize
+        loginBonusHikariManager = new HikariManager(
+                bonusHost,
+                bonusPort,
+                bonusName,
+                bonusUsername,
+                bonusPassword,
+                bonusPoolSize
+        );
+        altAccountHikariManager = new HikariManager(
+                altAccountHost,
+                altAccountPort,
+                altAccountName,
+                altAccountUsername,
+                altAccountPassword,
+                altAccountPoolSize
         );
 
         // テーブル生成
         try {
             new LoginBonusTableInitializer(
-                    hikariManager.getDataSource()
+                    loginBonusHikariManager.getDataSource()
             ).initialize();
 
             getLogger().info("データベース接続 & テーブル初期化完了");
@@ -71,18 +93,29 @@ public final class LoginBonusPL extends JavaPlugin {
 
         // DAOの作成,サービス層,マネージャの作成
         try{
-            LoginBonusEventDAO loginBonusEventDAO = new LoginBonusEventDAO(hikariManager.getDataSource());
-            RewardDAO eventRewardDAO = new RewardDAO(hikariManager.getDataSource());
-            PlayerLoginDAO playerLoginDAO = new PlayerLoginDAO(hikariManager.getDataSource());
-            LoginBonusService loginBonusService = new LoginBonusService(hikariManager.getDataSource(), loginBonusEventDAO, eventRewardDAO, playerLoginDAO);
-            loginBonusManager = new LoginBonusManager(hikariManager.getDataSource(), loginBonusService);
+            LoginBonusEventDAO loginBonusEventDAO = new LoginBonusEventDAO(loginBonusHikariManager.getDataSource());
+            RewardDAO eventRewardDAO = new RewardDAO(loginBonusHikariManager.getDataSource());
+            PlayerLoginDAO playerLoginDAO = new PlayerLoginDAO(loginBonusHikariManager.getDataSource());
+            LoginBonusService loginBonusService = new LoginBonusService(loginBonusHikariManager.getDataSource(), loginBonusEventDAO, eventRewardDAO, playerLoginDAO);
+            loginBonusManager = new LoginBonusManager(loginBonusHikariManager.getDataSource(), loginBonusService);
         } catch (SQLException e) {
-            getLogger().severe("マネージャの作成失敗");
-            e.printStackTrace();
+            getLogger().warning("LoginBonusDataBase への接続に失敗: " + e.getMessage());
             getServer().getPluginManager().disablePlugin(this);
         }
 
-        // LuckPermsの起動
+        // サブ垢対策用のDAO+クラスの作成
+        try {
+            ConnectionLogDAO connectionLogDAO = new ConnectionLogDAO(altAccountHikariManager.getDataSource(), altAccountTableName, altAccountColumnUUIDName, altAccountColumnIPName);
+            AltAccountService altAccountService = new AltAccountService(connectionLogDAO);
+        } catch (SQLException e) { //複数のエラーを吐く設計なのでこれにしたけどエラー毎に分けた方が丸いかも...?
+            getLogger().warning("AltAccountDataBase への接続に失敗: " + e.getMessage());
+            getServer().getPluginManager().disablePlugin(this);
+        } catch (IllegalStateException e){
+            getLogger().warning(e.getMessage());
+            getServer().getPluginManager().disablePlugin(this);
+        }
+
+        // LuckPerms の起動
         RegisteredServiceProvider<LuckPerms> provider =
                 Bukkit.getServicesManager().getRegistration(LuckPerms.class);
 
@@ -112,13 +145,12 @@ public final class LoginBonusPL extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (hikariManager != null) {
-            hikariManager.shutdown();
+        if (loginBonusHikariManager != null) {
+            loginBonusHikariManager.shutdown();
         }
-    }
-
-    public HikariManager getHikariManager() {
-        return hikariManager;
+        if (altAccountHikariManager != null) {
+            altAccountHikariManager.shutdown();
+        }
     }
 
     private void registerListeners(Listener... listeners) {

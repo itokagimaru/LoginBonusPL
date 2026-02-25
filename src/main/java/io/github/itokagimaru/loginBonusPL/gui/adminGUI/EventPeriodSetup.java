@@ -125,10 +125,8 @@ public class EventPeriodSetup extends BaseGuiHolder {
         if(item == null) return;
         IconID icon = IconID.getById(item.getPersistentDataContainer().get(key, PersistentDataType.STRING));
         if(icon == null) return;
-
         switch (icon) {
             case START_YEAR -> {
-                player.sendMessage("testes");
                 int yearOffset = 0;
                 if (event.isLeftClick()) {
                     if (event.isShiftClick()) yearOffset = 10;

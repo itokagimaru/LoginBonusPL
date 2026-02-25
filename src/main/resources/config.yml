@@ -1,7 +1,19 @@
-database:
+loginBonusDatabase:
   host: localhost
   port: 3306
   name: login_bonus
+  username: root
+  password: password
+  pool-size: 10
+altAccountDatabase:
+  enabled: false
+  host: localhost
+  port: 3306
+  name: alt-account
+  table-name: table-name
+  column:
+    uuid: uuid
+    ip: ip
   username: root
   password: password
   pool-size: 10
