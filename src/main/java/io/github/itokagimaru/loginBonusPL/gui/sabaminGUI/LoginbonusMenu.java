@@ -98,10 +98,10 @@ public class LoginbonusMenu extends BaseGuiHolder {
         LoginBonusEvent loginBonusEvent = loginBonusManager.getLoginBonusList().get(eventId);
         if (loginBonusEvent == null) return;
         if (event.isShiftClick()) {
-            loginBonusEvent.giveReward(player, loginBonusManager);
+            loginBonusEvent.giveReward(player, loginBonusManager, altAccountService);
         } else {
             closeFlag = false;
-            RewardCalendar rewardCalendar = new RewardCalendar(loginBonusManager, loginBonusEvent);
+            RewardCalendar rewardCalendar = new RewardCalendar(loginBonusManager, loginBonusEvent, altAccountService);
             player.openInventory(rewardCalendar.getInventory());
         }
     }

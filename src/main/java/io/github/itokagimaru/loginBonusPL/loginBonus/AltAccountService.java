@@ -7,8 +7,11 @@ import java.util.*;
 
 public class AltAccountService {
     ConnectionLogDAO connectionLogDAO;
-    public AltAccountService(ConnectionLogDAO connectionLogDAO) {
+    boolean enabled;
+
+    public AltAccountService(ConnectionLogDAO connectionLogDAO, boolean enable) {
         this.connectionLogDAO = connectionLogDAO;
+        this.enabled = enable;
     }
     public List<String> getIPList(UUID playerUUID) throws SQLException {
         return connectionLogDAO.findIpsByUuid(playerUUID);
@@ -30,4 +33,7 @@ public class AltAccountService {
     }
 
 
+    public boolean isEnabled() {
+        return enabled;
+    }
 }

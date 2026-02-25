@@ -2,6 +2,7 @@ package io.github.itokagimaru.loginBonusPL.gui.sabaminGUI;
 
 import io.github.itokagimaru.loginBonusPL.LoginBonusPL;
 import io.github.itokagimaru.loginBonusPL.gui.BaseGuiHolder;
+import io.github.itokagimaru.loginBonusPL.loginBonus.AltAccountService;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusEvent;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusManager;
 import net.kyori.adventure.text.Component;
@@ -18,6 +19,7 @@ import java.util.List;
 
 public class RewardCalendar extends BaseGuiHolder {
     LoginBonusManager loginBonusManager;
+    AltAccountService altAccountService;
     LoginBonusEvent loginBonusEvent;
 
     NamespacedKey iconKey = new NamespacedKey("loginbonus", "reward_calendar_icon");
@@ -48,8 +50,9 @@ public class RewardCalendar extends BaseGuiHolder {
     int pagePerReward = INV_SIZE/9 * 7;
     int page = 0;
 
-    public RewardCalendar(LoginBonusManager loginBonusManager, LoginBonusEvent loginBonusEvent) {
+    public RewardCalendar(LoginBonusManager loginBonusManager, LoginBonusEvent loginBonusEvent, AltAccountService altAccountService) {
         this.loginBonusManager = loginBonusManager;
+        this.altAccountService = altAccountService; //ここで触ったりはしない.LoginbonusMenu に返すために受け取ってる.絶対もっときれいに出来る
         this.loginBonusEvent = loginBonusEvent;
         inv = Bukkit.createInventory(this, INV_SIZE, Component.text("Login Bonus: " + loginBonusEvent.getName()));
         setup();
@@ -102,7 +105,7 @@ public class RewardCalendar extends BaseGuiHolder {
         switch (iconID) {
             case REWARD_ICON -> {
                 closeFlag = false;
-                RewardViewer rewardViewer = new RewardViewer(item.getPersistentDataContainer().get(dayKey, PersistentDataType.INTEGER), loginBonusEvent, loginBonusManager);
+                RewardViewer rewardViewer = new RewardViewer(item.getPersistentDataContainer().get(dayKey, PersistentDataType.INTEGER), loginBonusEvent, loginBonusManager, altAccountService);
                 player.openInventory(rewardViewer.getInventory());
             }
             case NEXT -> {
@@ -122,7 +125,7 @@ public class RewardCalendar extends BaseGuiHolder {
     public void onClose(Player player) {
         if (!closeFlag) return;
         closeFlag = false;
-        LoginbonusMenu loginbonusMenu = new LoginbonusMenu(loginBonusManager);
+        LoginbonusMenu loginbonusMenu = new LoginbonusMenu(loginBonusManager, altAccountService);
         Bukkit.getScheduler().runTask(LoginBonusPL.getInstance(), () -> {
             player.openInventory(loginbonusMenu.getInventory());
         });

@@ -1,6 +1,7 @@
 package io.github.itokagimaru.loginBonusPL.command;
 
 import io.github.itokagimaru.loginBonusPL.gui.sabaminGUI.LoginbonusMenu;
+import io.github.itokagimaru.loginBonusPL.loginBonus.AltAccountService;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusManager;
 
 import org.bukkit.command.Command;
@@ -14,8 +15,10 @@ import java.util.List;
 
 public class LoginBonusCommand implements CommandExecutor, TabCompleter {
     LoginBonusManager loginBonusManager;
-    public LoginBonusCommand(LoginBonusManager loginBonusManager) {
+    AltAccountService altAccountService;
+    public LoginBonusCommand(LoginBonusManager loginBonusManager, AltAccountService altAccountService) {
         this.loginBonusManager = loginBonusManager;
+        this.altAccountService = altAccountService;
     }
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -29,7 +32,7 @@ public class LoginBonusCommand implements CommandExecutor, TabCompleter {
                 showHelp(player);
             }
             case "guiopen" -> {
-                LoginbonusMenu loginbonusMenu = new LoginbonusMenu(loginBonusManager);
+                LoginbonusMenu loginbonusMenu = new LoginbonusMenu(loginBonusManager, altAccountService);
                 player.openInventory(loginbonusMenu.getInventory());
             }
         }

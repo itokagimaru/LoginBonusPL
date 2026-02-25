@@ -104,15 +104,18 @@ public final class LoginBonusPL extends JavaPlugin {
         }
 
         // サブ垢対策用のDAO+クラスの作成
-        try {
-            ConnectionLogDAO connectionLogDAO = new ConnectionLogDAO(altAccountHikariManager.getDataSource(), altAccountTableName, altAccountColumnUUIDName, altAccountColumnIPName);
-            AltAccountService altAccountService = new AltAccountService(connectionLogDAO);
-        } catch (SQLException e) { //複数のエラーを吐く設計なのでこれにしたけどエラー毎に分けた方が丸いかも...?
-            getLogger().warning("AltAccountDataBase への接続に失敗: " + e.getMessage());
-            getServer().getPluginManager().disablePlugin(this);
-        } catch (IllegalStateException e){
-            getLogger().warning(e.getMessage());
-            getServer().getPluginManager().disablePlugin(this);
+        AltAccountService altAccountService = new AltAccountService(null, false);//私のサーバではサブ垢対策用のDBにアクセスできないので他機能テスト時にエラーを吐くためon/off機能が欲しかった
+        if (altAccountEnabled) {
+            try {
+                ConnectionLogDAO connectionLogDAO = new ConnectionLogDAO(altAccountHikariManager.getDataSource(), altAccountTableName, altAccountColumnUUIDName, altAccountColumnIPName);
+                altAccountService = new AltAccountService(connectionLogDAO, true);
+            } catch (SQLException e) {
+                getLogger().warning("AltAccountDataBase への接続に失敗: " + e.getMessage());
+                getServer().getPluginManager().disablePlugin(this);
+            } catch (IllegalStateException e){
+                getLogger().warning(e.getMessage());
+                getServer().getPluginManager().disablePlugin(this);
+            }
         }
 
         // LuckPerms の起動
@@ -129,7 +132,7 @@ public final class LoginBonusPL extends JavaPlugin {
         //command の登録
         if (loginBonusManager != null) {
             registerCommandWithTabCompleter("loginbonusop", new LoginBonusOPCommand(loginBonusManager, luckPerms), new LoginBonusOPCommand(loginBonusManager, luckPerms));
-            registerCommandWithTabCompleter("loginbonus", new LoginBonusCommand(loginBonusManager), new LoginBonusCommand(loginBonusManager));
+            registerCommandWithTabCompleter("loginbonus", new LoginBonusCommand(loginBonusManager, altAccountService), new LoginBonusCommand(loginBonusManager, altAccountService));
         }
 
 

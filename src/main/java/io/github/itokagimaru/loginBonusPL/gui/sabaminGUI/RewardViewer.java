@@ -2,6 +2,7 @@ package io.github.itokagimaru.loginBonusPL.gui.sabaminGUI;
 
 import io.github.itokagimaru.loginBonusPL.LoginBonusPL;
 import io.github.itokagimaru.loginBonusPL.gui.BaseGuiHolder;
+import io.github.itokagimaru.loginBonusPL.loginBonus.AltAccountService;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusEvent;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusManager;
 import net.kyori.adventure.text.Component;
@@ -13,11 +14,11 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class RewardViewer extends BaseGuiHolder {
     LoginBonusManager loginBonusManager;
+    AltAccountService altAccountService;
     LoginBonusEvent loginBonusEvent;
     int day;
 
@@ -46,8 +47,9 @@ public class RewardViewer extends BaseGuiHolder {
 
     int INV_SIZE = 27;
 
-    public RewardViewer(int day, LoginBonusEvent loginBonusEvent, LoginBonusManager loginBonusManager) {
+    public RewardViewer(int day, LoginBonusEvent loginBonusEvent, LoginBonusManager loginBonusManager, AltAccountService altAccountService) {
         this.loginBonusEvent = loginBonusEvent;
+        this.altAccountService = altAccountService;//RewardCalender と同じくここでは触らないが返すために存在
         this.loginBonusManager = loginBonusManager;
         this.day = day;
         inv = Bukkit.createInventory(this, INV_SIZE, Component.text(loginBonusEvent.getName() + " / " + day + "日目"));
@@ -106,14 +108,14 @@ public class RewardViewer extends BaseGuiHolder {
                 if (loginBonusEvent.getMaxDayCount() <= day) return;
                 day++;
                 closeFlag = false;
-                RewardViewer rewardViewer = new RewardViewer(day, loginBonusEvent, loginBonusManager);
+                RewardViewer rewardViewer = new RewardViewer(day, loginBonusEvent, loginBonusManager, altAccountService);
                 player.openInventory(rewardViewer.getInventory());
             }
             case BACK -> {
                 if (1 >= day) return;
                 day--;
                 closeFlag = false;
-                RewardViewer rewardViewer = new RewardViewer(day, loginBonusEvent, loginBonusManager);
+                RewardViewer rewardViewer = new RewardViewer(day, loginBonusEvent, loginBonusManager, altAccountService);
                 player.openInventory(rewardViewer.getInventory());
             }
         }
@@ -123,7 +125,7 @@ public class RewardViewer extends BaseGuiHolder {
     public void onClose(Player player) {
         if (!closeFlag) return;
         closeFlag = false;
-        RewardCalendar rewardCalendar = new RewardCalendar(loginBonusManager, loginBonusEvent);
+        RewardCalendar rewardCalendar = new RewardCalendar(loginBonusManager, loginBonusEvent, altAccountService);
         Bukkit.getScheduler().runTask(LoginBonusPL.getInstance(), () -> {
             player.openInventory(rewardCalendar.getInventory());
         });

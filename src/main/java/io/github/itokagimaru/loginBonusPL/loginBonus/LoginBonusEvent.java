@@ -150,7 +150,7 @@ public class LoginBonusEvent {
             loginProgress.setLastLoginDate(LocalDate.now());
             try {
                 loginBonusManager.updatePlayerLoginProgress(loginProgress.getUuid(), loginProgress);
-                updatePlayerLoginProgressForAltAccount(altAccountService.getAltAccountList(player.getUniqueId()), loginProgress, loginBonusManager);
+                if (altAccountService.isEnabled()) updatePlayerLoginProgressForAltAccount(altAccountService.getAltAccountList(player.getUniqueId()), loginProgress, loginBonusManager);
             } catch (SQLException e) {
                 player.sendMessage(Component.text("報酬の受け取りに失敗しました").color(NamedTextColor.RED));
                 return;
@@ -188,6 +188,7 @@ public class LoginBonusEvent {
         return count;
     }
 
+    //メソッド名長すぎいいのを思いついたら短くする
     private void updatePlayerLoginProgressForAltAccount(List<UUID> altAccountList, PlayerLoginProgress loginProgress, LoginBonusManager loginBonusManager) throws SQLException {
         for (UUID uuid : altAccountList) {
             PlayerLoginProgress altProgress = loginBonusManager.getOrCreatePlayerLoginProgress(uuid, this);
