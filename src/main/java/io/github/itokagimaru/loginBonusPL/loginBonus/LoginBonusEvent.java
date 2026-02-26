@@ -128,35 +128,67 @@ public class LoginBonusEvent {
     public int getMaxDayCount() {
         return maxDayCount;
     }
-    public void giveReward(Player player, LoginBonusManager loginBonusManager, AltAccountService altAccountService) {
-        PlayerLoginProgress loginProgress;
-        try {
-            loginProgress = loginBonusManager.getOrCreatePlayerLoginProgress(player.getUniqueId(), this);
-        } catch (SQLException e) {
-            player.sendMessage(Component.text("ログイン情報の取得に失敗しました :").color(NamedTextColor.RED));
-            player.sendMessage(Component.text(e.getMessage()).color(NamedTextColor.RED));
-            return;
-        }
-        int betweenDay;
-        try {
-            betweenDay = Math.toIntExact(ChronoUnit.DAYS.between(loginProgress.getLastLoginDate(), LocalDate.now()));
-        } catch (ArithmeticException e){
-            betweenDay = 2;
-        }
-        if (betweenDay > 0) {
-            loginProgress.addTotalLoginDays();
-            if (betweenDay == 1) loginProgress.addContinuousDays();
-            else loginProgress.setContinuousDays(0);
-            loginProgress.setLastLoginDate(LocalDate.now());
+    public void giveReward(Player player, LoginBonusManager loginBonusManager) {
+        if (loginBonusManager.isAltAccountRestricted()) { //サブ垢対策が有効なら...
+            List<PlayerLoginProgress> playerLoginProgressList;
             try {
-                loginBonusManager.updatePlayerLoginProgress(loginProgress.getUuid(), loginProgress);
-                if (altAccountService.isEnabled()) updatePlayerLoginProgressForAltAccount(altAccountService.getAltAccountList(player.getUniqueId()), loginProgress, loginBonusManager);
+                playerLoginProgressList = loginBonusManager.getAltAccountLoginProgress(player.getUniqueId(), this);
             } catch (SQLException e) {
-                player.sendMessage(Component.text("報酬の受け取りに失敗しました").color(NamedTextColor.RED));
+                player.sendMessage(Component.text("ログイン情報の取得に失敗したため、ログイン処理を停止しました").color(NamedTextColor.RED));
+                player.sendMessage(Component.text("時間を開けて再度ログインしてください"));
+                //todo プレイヤーには見えない形でエラーを吐くように.他のところも直す
                 return;
             }
-            giveRewardItem(loginProgress.getTotalLoginDays(), player);
+            if (loginBonusManager.getLastLoginDate(playerLoginProgressList).isAfter(LocalDate.now())) {
+                try {
+                    updatePlayerLoginProgressForAltAccount(playerLoginProgressList, loginBonusManager);
+                } catch (SQLException e) {
+                    player.sendMessage(Component.text("ログイン情報の更新に失敗したため、ログイン処理を停止しました").color(NamedTextColor.RED));
+                    player.sendMessage(Component.text("時間を開けて再度ログインしてください"));
+                    return;
+                }
+                giveRewardItem(loginBonusManager.getMaxTotalLogins(playerLoginProgressList), player);
+            } else {
+                player.sendMessage(Component.text("本日のログインボーナスは受取済みです").color(NamedTextColor.RED));
+            }
+        } else {//サブ垢対策が無効なら...
+            PlayerLoginProgress playerLoginProgress;
+            try {
+                playerLoginProgress = loginBonusManager.getOrCreatePlayerLoginProgress(player.getUniqueId(), this);
+            } catch (SQLException e) {
+                player.sendMessage(Component.text("ログイン情報の取得に失敗したため、ログイン処理を停止しました").color(NamedTextColor.RED));
+                player.sendMessage(Component.text("時間を開けて再度ログインしてください"));
+                return;
+            }
+
+            LocalDate lastLoginDate = playerLoginProgress.getLastLoginDate();
+            if (lastLoginDate.isAfter(LocalDate.now())) {
+                playerLoginProgress.addTotalLoginDays();
+                playerLoginProgress.setLastLoginDate(LocalDate.now());
+                int betweenDay;
+                try {
+                    betweenDay = Math.toIntExact(ChronoUnit.DAYS.between(lastLoginDate, LocalDate.now()));
+                } catch (ArithmeticException e){
+                    betweenDay = 2;
+                }
+                if (betweenDay == 1) {
+                    playerLoginProgress.addContinuousDays();
+                }
+                try {
+                    loginBonusManager.updatePlayerLoginProgress(player.getUniqueId(), playerLoginProgress);
+                } catch (SQLException e) {
+                    player.sendMessage(Component.text("ログイン情報の更新に失敗したため、ログイン処理を停止しました").color(NamedTextColor.RED));
+                    player.sendMessage(Component.text("時間を開けて再度ログインしてください"));
+                    return;
+                }
+                giveRewardItem(playerLoginProgress.getTotalLoginDays(),  player);
+            } else {
+                player.sendMessage(Component.text("本日のログインボーナスは受取済みです").color(NamedTextColor.RED));
+            }
         }
+
+
+
     }
 
     private void giveRewardItem(int day, Player player) {
@@ -189,13 +221,24 @@ public class LoginBonusEvent {
     }
 
     //メソッド名長すぎいいのを思いついたら短くする
-    private void updatePlayerLoginProgressForAltAccount(List<UUID> altAccountList, PlayerLoginProgress loginProgress, LoginBonusManager loginBonusManager) throws SQLException {
-        for (UUID uuid : altAccountList) {
-            PlayerLoginProgress altProgress = loginBonusManager.getOrCreatePlayerLoginProgress(uuid, this);
-            altProgress.setLastLoginDate(loginProgress.getLastLoginDate());
-            altProgress.setTotalLoginDays(loginProgress.getTotalLoginDays());
-            altProgress.setContinuousDays(loginProgress.getContinuousDays());
-            loginBonusManager.updatePlayerLoginProgress(uuid, altProgress);
+    private void updatePlayerLoginProgressForAltAccount(List<PlayerLoginProgress> altAccountList, LoginBonusManager loginBonusManager) throws SQLException {
+        LocalDate lastLoginDate = loginBonusManager.getLastLoginDate(altAccountList);
+        int totalLoginDays = loginBonusManager.getMaxTotalLogins(altAccountList);
+        int continuousDays = loginBonusManager.getMaxContinuousDays(altAccountList);
+        int betweenDay;
+        try {
+            betweenDay = Math.toIntExact(ChronoUnit.DAYS.between(lastLoginDate, LocalDate.now()));
+        } catch (ArithmeticException e){
+            betweenDay = 2;
         }
+        for (PlayerLoginProgress progress : altAccountList) {
+            progress.setLastLoginDate(lastLoginDate);
+            progress.setTotalLoginDays(totalLoginDays);
+            if (betweenDay == 1) progress.setContinuousDays(continuousDays + 1);
+            else progress.setContinuousDays(continuousDays);
+            loginBonusManager.updatePlayerLoginProgress(progress.getUuid(), progress);
+        }
+        return;
     }
+
 }

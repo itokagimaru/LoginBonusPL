@@ -91,17 +91,6 @@ public final class LoginBonusPL extends JavaPlugin {
             getServer().getPluginManager().disablePlugin(this);
         }
 
-        // DAOの作成,サービス層,マネージャの作成
-        try{
-            LoginBonusEventDAO loginBonusEventDAO = new LoginBonusEventDAO(loginBonusHikariManager.getDataSource());
-            RewardDAO eventRewardDAO = new RewardDAO(loginBonusHikariManager.getDataSource());
-            PlayerLoginDAO playerLoginDAO = new PlayerLoginDAO(loginBonusHikariManager.getDataSource());
-            LoginBonusService loginBonusService = new LoginBonusService(loginBonusHikariManager.getDataSource(), loginBonusEventDAO, eventRewardDAO, playerLoginDAO);
-            loginBonusManager = new LoginBonusManager(loginBonusHikariManager.getDataSource(), loginBonusService);
-        } catch (SQLException e) {
-            getLogger().warning("LoginBonusDataBase への接続に失敗: " + e.getMessage());
-            getServer().getPluginManager().disablePlugin(this);
-        }
 
         // サブ垢対策用のDAO+クラスの作成
         AltAccountService altAccountService = new AltAccountService(null, false);//私のサーバではサブ垢対策用のDBにアクセスできないので他機能テスト時にエラーを吐くためon/off機能が欲しかった
@@ -117,6 +106,20 @@ public final class LoginBonusPL extends JavaPlugin {
                 getServer().getPluginManager().disablePlugin(this);
             }
         }
+
+        // DAOの作成,サービス層,マネージャの作成
+        try{
+            LoginBonusEventDAO loginBonusEventDAO = new LoginBonusEventDAO(loginBonusHikariManager.getDataSource());
+            RewardDAO eventRewardDAO = new RewardDAO(loginBonusHikariManager.getDataSource());
+            PlayerLoginDAO playerLoginDAO = new PlayerLoginDAO(loginBonusHikariManager.getDataSource());
+            LoginBonusService loginBonusService = new LoginBonusService(loginBonusHikariManager.getDataSource(), loginBonusEventDAO, eventRewardDAO, playerLoginDAO);
+            loginBonusManager = new LoginBonusManager(loginBonusHikariManager.getDataSource(), loginBonusService, altAccountService);
+        } catch (SQLException e) {
+            getLogger().warning("LoginBonusDataBase への接続に失敗: " + e.getMessage());
+            getServer().getPluginManager().disablePlugin(this);
+        }
+
+
 
         // LuckPerms の起動
         RegisteredServiceProvider<LuckPerms> provider =

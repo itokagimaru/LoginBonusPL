@@ -20,7 +20,6 @@ import java.util.Map;
 
 public class LoginbonusMenu extends BaseGuiHolder {
     LoginBonusManager loginBonusManager;
-    AltAccountService altAccountService;
     NamespacedKey iconKey = new NamespacedKey("loginbonus", "loginbonusmenu_icon");
     NamespacedKey eventKey = new NamespacedKey("loginbonus", "loginbonusmenu_event");
 
@@ -44,9 +43,8 @@ public class LoginbonusMenu extends BaseGuiHolder {
         }
     }
 
-    public LoginbonusMenu(LoginBonusManager loginBonusManager, AltAccountService altAccountService) {
+    public LoginbonusMenu(LoginBonusManager loginBonusManager) {
         this.loginBonusManager = loginBonusManager;
-        this.altAccountService = altAccountService;
         inv = Bukkit.createInventory(this, INV_SIZE, Component.text("開催中の LoginBonus 一覧").color(NamedTextColor.BLUE));
         setup();
     }
@@ -98,10 +96,10 @@ public class LoginbonusMenu extends BaseGuiHolder {
         LoginBonusEvent loginBonusEvent = loginBonusManager.getLoginBonusList().get(eventId);
         if (loginBonusEvent == null) return;
         if (event.isShiftClick()) {
-            loginBonusEvent.giveReward(player, loginBonusManager, altAccountService);
+            loginBonusEvent.giveReward(player, loginBonusManager);
         } else {
             closeFlag = false;
-            RewardCalendar rewardCalendar = new RewardCalendar(loginBonusManager, loginBonusEvent, altAccountService);
+            RewardCalendar rewardCalendar = new RewardCalendar(loginBonusManager, loginBonusEvent);
             player.openInventory(rewardCalendar.getInventory());
         }
     }

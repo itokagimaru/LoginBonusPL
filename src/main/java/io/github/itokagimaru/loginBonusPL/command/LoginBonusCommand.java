@@ -32,7 +32,7 @@ public class LoginBonusCommand implements CommandExecutor, TabCompleter {
                 showHelp(player);
             }
             case "guiopen" -> {
-                LoginbonusMenu loginbonusMenu = new LoginbonusMenu(loginBonusManager, altAccountService);
+                LoginbonusMenu loginbonusMenu = new LoginbonusMenu(loginBonusManager);
                 player.openInventory(loginbonusMenu.getInventory());
             }
         }

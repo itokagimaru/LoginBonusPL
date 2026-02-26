@@ -18,7 +18,6 @@ import java.util.List;
 
 public class RewardViewer extends BaseGuiHolder {
     LoginBonusManager loginBonusManager;
-    AltAccountService altAccountService;
     LoginBonusEvent loginBonusEvent;
     int day;
 
@@ -47,9 +46,8 @@ public class RewardViewer extends BaseGuiHolder {
 
     int INV_SIZE = 27;
 
-    public RewardViewer(int day, LoginBonusEvent loginBonusEvent, LoginBonusManager loginBonusManager, AltAccountService altAccountService) {
+    public RewardViewer(int day, LoginBonusEvent loginBonusEvent, LoginBonusManager loginBonusManager) {
         this.loginBonusEvent = loginBonusEvent;
-        this.altAccountService = altAccountService;//RewardCalender と同じくここでは触らないが返すために存在
         this.loginBonusManager = loginBonusManager;
         this.day = day;
         inv = Bukkit.createInventory(this, INV_SIZE, Component.text(loginBonusEvent.getName() + " / " + day + "日目"));
@@ -108,14 +106,14 @@ public class RewardViewer extends BaseGuiHolder {
                 if (loginBonusEvent.getMaxDayCount() <= day) return;
                 day++;
                 closeFlag = false;
-                RewardViewer rewardViewer = new RewardViewer(day, loginBonusEvent, loginBonusManager, altAccountService);
+                RewardViewer rewardViewer = new RewardViewer(day, loginBonusEvent, loginBonusManager);
                 player.openInventory(rewardViewer.getInventory());
             }
             case BACK -> {
                 if (1 >= day) return;
                 day--;
                 closeFlag = false;
-                RewardViewer rewardViewer = new RewardViewer(day, loginBonusEvent, loginBonusManager, altAccountService);
+                RewardViewer rewardViewer = new RewardViewer(day, loginBonusEvent, loginBonusManager);
                 player.openInventory(rewardViewer.getInventory());
             }
         }
@@ -125,7 +123,7 @@ public class RewardViewer extends BaseGuiHolder {
     public void onClose(Player player) {
         if (!closeFlag) return;
         closeFlag = false;
-        RewardCalendar rewardCalendar = new RewardCalendar(loginBonusManager, loginBonusEvent, altAccountService);
+        RewardCalendar rewardCalendar = new RewardCalendar(loginBonusManager, loginBonusEvent);
         Bukkit.getScheduler().runTask(LoginBonusPL.getInstance(), () -> {
             player.openInventory(rewardCalendar.getInventory());
         });

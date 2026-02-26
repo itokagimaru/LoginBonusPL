@@ -4,17 +4,22 @@ import com.zaxxer.hikari.HikariDataSource;
 import io.github.itokagimaru.loginBonusPL.servise.LoginBonusService;
 
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 public class LoginBonusManager {
     private Map<Integer,LoginBonusEvent> loginBonusList;
     LoginBonusService loginBonusService;
+    AltAccountService altAccountService;
     HikariDataSource dataSource;
 
-    public LoginBonusManager(HikariDataSource dataSource, LoginBonusService loginBonusService) throws SQLException {
+    public LoginBonusManager(HikariDataSource dataSource, LoginBonusService loginBonusService, AltAccountService altAccountService) throws SQLException {
         this.dataSource = dataSource;
         this.loginBonusService = loginBonusService;
+        this.altAccountService = altAccountService;
         loginBonusList = loginBonusService.getAllEvents();
     }
 
@@ -47,6 +52,52 @@ public class LoginBonusManager {
 
     public boolean deletePlayerLoginProgress(UUID playerUUID, LoginBonusEvent event) throws SQLException {
         return loginBonusService.deletePlayerLogin(playerUUID, event);
+    }
+
+    public boolean isAltAccountRestricted(){
+        return altAccountService.isEnabled();
+    }
+
+    public List<UUID> getAltAccounts(UUID playerUUID) throws SQLException {
+        return altAccountService.getAltAccountList(playerUUID);
+    }
+
+    public List<PlayerLoginProgress> getAltAccountLoginProgress(UUID playerUUID, LoginBonusEvent event) throws SQLException {
+        List<PlayerLoginProgress> progresses = new ArrayList<>();
+        for (UUID altAccountUUID : getAltAccounts(playerUUID)) {
+            progresses.add(getOrCreatePlayerLoginProgress(altAccountUUID, event));
+        }
+        return progresses;
+    }
+
+    public LocalDate getLastLoginDate(List<PlayerLoginProgress> loginProgresses) {
+        LocalDate lastLoginDate  = null;
+        for (PlayerLoginProgress loginProgress : loginProgresses) {
+            if (lastLoginDate == null) {
+                lastLoginDate = loginProgress.getLastLoginDate();
+                continue;
+            }
+            if (loginProgress.getLastLoginDate().isAfter(lastLoginDate)) {
+                lastLoginDate = loginProgress.getLastLoginDate();
+            }
+        }
+        return lastLoginDate;
+    }
+
+    public int getMaxTotalLogins(List<PlayerLoginProgress> loginProgresses) {
+        int max = -1;
+        for (PlayerLoginProgress loginProgress : loginProgresses) {
+            max = Math.max(max, loginProgress.getTotalLoginDays());
+        }
+        return max;
+    }
+
+    public int getMaxContinuousDays(List<PlayerLoginProgress> loginProgresses) {
+        int max = -1;
+        for (PlayerLoginProgress loginProgress : loginProgresses) {
+            max = Math.max(max, loginProgress.getContinuousDays());
+        }
+        return max;
     }
 
     //ゲッターってやつ

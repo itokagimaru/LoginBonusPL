@@ -3,7 +3,6 @@ package io.github.itokagimaru.loginBonusPL.MySQL.DAO;
 import javax.sql.DataSource;
 import java.sql.*;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class ConnectionLogDAO {
 
@@ -25,13 +24,17 @@ public class ConnectionLogDAO {
     }
 
     /**
-     * 1. uuidから含まれるIP一覧を取得
+     uuidからサブアカウント一覧の取得
      */
-    public List<String> findIpsByUuid(UUID uuid) throws SQLException {
+    public List<UUID> findIAltAccountByUuid(UUID uuid) throws SQLException {
 
         String sql = String.format(
-                "SELECT DISTINCT %s FROM %s WHERE %s = ? AND %s IS NOT NULL",
-                ipColumn, tableName, uuidColumn, ipColumn
+                "SELECT DISTINCT %s FROM %s WHERE %s IN ("
+                        + "  SELECT DISTINCT %s FROM %s WHERE %s = ? AND %s IS NOT NULL"
+                        + ") AND %s IS NOT NULL",
+                uuidColumn, tableName, ipColumn,
+                ipColumn, tableName, uuidColumn, ipColumn,
+                uuidColumn
         );
 
         try (Connection conn = dataSource.getConnection();
@@ -41,43 +44,13 @@ public class ConnectionLogDAO {
 
             try (ResultSet rs = ps.executeQuery()) {
 
-                List<String> result = new ArrayList<>();
-
-                while (rs.next()) {
-                    result.add(rs.getString(ipColumn));
-                }
-
-                return result;
-            }
-        }
-    }
-
-    /**
-     * 2. ipからそのipが含まれるuuid一覧を取得
-     */
-    public List<UUID> findUuidsByIp(String ip) throws SQLException {
-
-        String sql = String.format(
-                "SELECT DISTINCT %s FROM %s WHERE %s = ? AND %s IS NOT NULL",
-                uuidColumn, tableName, ipColumn, uuidColumn
-        );
-
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setString(1, ip);
-
-            try (ResultSet rs = ps.executeQuery()) {
-
                 List<UUID> result = new ArrayList<>();
 
                 while (rs.next()) {
-                    String uuidStr = rs.getString(uuidColumn);
-
                     try {
-                        result.add(UUID.fromString(uuidStr));
-                    } catch (IllegalArgumentException ignored) {
-                        // 不正UUIDはスキップ
+                        result.add(UUID.fromString(rs.getString(uuidColumn)));
+                    } catch (IllegalArgumentException e) {
+                        //不正なUUIDは無視
                     }
                 }
 
