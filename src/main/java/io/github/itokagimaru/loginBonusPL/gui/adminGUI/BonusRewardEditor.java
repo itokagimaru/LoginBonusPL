@@ -81,16 +81,17 @@ public class BonusRewardEditor extends BaseGuiHolder {
         }
         List<ItemStack> rewards = loginBonusEvent.getRewardByDay(day);
         if (rewards == null || rewards.isEmpty()) return;
+        int rewardIndex = 0;
         for (int i = 0; i < INV_SIZE/9; i++) {
             for (int j = 1; j < 8; j++) {
                 int slot = i * 9 + j;
-                int rewardIndex = slot -1;
                 if (rewardIndex >= rewards.size()) return;
                 ItemStack reward = rewards.get(rewardIndex).clone();
                 reward.editMeta(meta -> {
                     meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, IconId.REWARD.getValue());
                 });
                 inv.setItem(slot, reward);
+                rewardIndex++;
             }
         }
     }
