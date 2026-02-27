@@ -141,7 +141,7 @@ public class LoginBonusEvent {
             }
             if (loginBonusManager.getLastLoginDate(playerLoginProgressList).isBefore(LocalDate.now())) {
                 if (loginBonusManager.getMaxTotalLogins(playerLoginProgressList) >= maxDayCount) {
-                    player.sendMessage(Component.text("このログインボーナスの報酬は全て受取済みです" + loginBonusManager.getLastLoginDate(playerLoginProgressList).toString()).color(NamedTextColor.RED));
+                    player.sendMessage(Component.text("このログインボーナスの報酬は全て受取済みです").color(NamedTextColor.RED));
                     return;
                 }
                 try {
@@ -154,7 +154,7 @@ public class LoginBonusEvent {
                 }
                 giveRewardItem(loginBonusManager.getMaxTotalLogins(playerLoginProgressList), player);
             } else {
-                player.sendMessage(Component.text("本日のログインボーナスは受取済みです" + loginBonusManager.getLastLoginDate(playerLoginProgressList).toString()).color(NamedTextColor.RED));
+                player.sendMessage(Component.text("本日のログインボーナスは受取済みです").color(NamedTextColor.RED));
                 return;
             }
         } else {//サブ垢対策が無効なら...
@@ -195,7 +195,7 @@ public class LoginBonusEvent {
                 }
                 giveRewardItem(playerLoginProgress.getTotalLoginDays(),  player);
             } else {
-                player.sendMessage(Component.text("本日のログインボーナスは受取済みです" + lastLoginDate.toString() + LocalDate.now()).color(NamedTextColor.RED));
+                player.sendMessage(Component.text("本日のログインボーナスは受取済みです").color(NamedTextColor.RED));
             }
         }
 
