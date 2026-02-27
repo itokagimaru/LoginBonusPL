@@ -3,7 +3,6 @@ package io.github.itokagimaru.loginBonusPL.loginBonus;
 import io.github.itokagimaru.loginBonusPL.MySQL.DAO.ConnectionLogDAO;
 
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.util.*;
 
 public class AltAccountService {

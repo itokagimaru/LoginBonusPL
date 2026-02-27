@@ -48,7 +48,7 @@ public final class LoginBonusPL extends JavaPlugin {
         String bonusPassword = getConfig().getString("loginBonusDatabase.password");
         int bonusPoolSize = getConfig().getInt("loginBonusDatabase.pool-size");
 
-        boolean altAccountEnabled = getConfig().getBoolean("loginBonusDatabase.enabled");
+        boolean altAccountEnabled = getConfig().getBoolean("altAccountDatabase.enabled");
         String altAccountHost = getConfig().getString("altAccountDatabase.host");
         int altAccountPort = getConfig().getInt("altAccountDatabase.port");
         String altAccountName = getConfig().getString("altAccountDatabase.name");

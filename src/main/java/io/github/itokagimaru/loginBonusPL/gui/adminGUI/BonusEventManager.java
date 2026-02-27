@@ -97,7 +97,7 @@ public class BonusEventManager extends BaseGuiHolder {
             loginBonusManager.saveLoginBonus(loginEvent);
             player.sendMessage(Component.text(loginEvent.getName() + "の activeを " + loginEvent.isActive() + " に設定しました"));
         } catch (SQLException e) {
-            player.sendMessage(Component.text("イベントのアクティブの設定に失敗しました: ").color(NamedTextColor.RED).append(Component.text(e.getMessage()).color(NamedTextColor.WHITE)) );
+            player.sendMessage(Component.text("イベントのアクティブ設定に失敗しました: ").color(NamedTextColor.RED).append(Component.text(e.getMessage()).color(NamedTextColor.WHITE)) );
         }
         setup();
     }

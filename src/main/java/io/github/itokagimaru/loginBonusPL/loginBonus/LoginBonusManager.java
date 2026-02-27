@@ -5,10 +5,7 @@ import io.github.itokagimaru.loginBonusPL.servise.LoginBonusService;
 
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 public class LoginBonusManager {
     private Map<Integer,LoginBonusEvent> loginBonusList;
@@ -54,6 +51,14 @@ public class LoginBonusManager {
         return loginBonusService.deletePlayerLogin(playerUUID, event);
     }
 
+    public boolean deletePlayerLoginProgress(UUID playerUUID) throws SQLException {
+        return loginBonusService.deletePlayerLogin(playerUUID);
+    }
+
+    public boolean deleteAllPlayerLoginProgress(int eventId) throws SQLException {
+        return loginBonusService.deleteAllPlayerLogin(eventId);
+    }
+
     public boolean isAltAccountRestricted(){
         return altAccountService.isEnabled();
     }
@@ -64,7 +69,9 @@ public class LoginBonusManager {
 
     public List<PlayerLoginProgress> getAltAccountLoginProgress(UUID playerUUID, LoginBonusEvent event) throws SQLException {
         List<PlayerLoginProgress> progresses = new ArrayList<>();
-        for (UUID altAccountUUID : getAltAccounts(playerUUID)) {
+        List<UUID> altAccounts = getAltAccounts(playerUUID);
+        if (!altAccounts.contains(playerUUID)) altAccounts.add(playerUUID);
+        for (UUID altAccountUUID : altAccounts) {
             progresses.add(getOrCreatePlayerLoginProgress(altAccountUUID, event));
         }
         return progresses;
@@ -81,6 +88,7 @@ public class LoginBonusManager {
                 lastLoginDate = loginProgress.getLastLoginDate();
             }
         }
+        if (lastLoginDate == null) return LocalDate.now().minusDays(1);
         return lastLoginDate;
     }
 

@@ -45,14 +45,14 @@ public class BonusRewardEditor extends BaseGuiHolder {
     }
 
     int INV_SIZE = 27;
-    String TITLE = "Bonus Reward Editor";
+    String TITLE = "Bonus Reward Editor / ";
 
     public BonusRewardEditor(LoginBonusEvent event, int day, LoginBonusManager loginBonusManager) {
         this.loginBonusManager = loginBonusManager;
         this.loginBonusEvent = new LoginBonusEvent(event);
         this.day = day;
 
-        inv = Bukkit.createInventory(this, INV_SIZE, Component.text(TITLE));
+        inv = Bukkit.createInventory(this, INV_SIZE, Component.text(TITLE + day + "日目"));
         setup(day);
     }
 
@@ -76,8 +76,8 @@ public class BonusRewardEditor extends BaseGuiHolder {
             meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, IconId.BACK.getValue());
         });
         for (int i = 0; i < INV_SIZE/9; i++) {
-            inv.setItem(i * 9, next);
-            inv.setItem(i * 9 + 8, back);
+            inv.setItem(i * 9, back);
+            inv.setItem(i * 9 + 8, next);
         }
         List<ItemStack> rewards = loginBonusEvent.getRewardByDay(day);
         if (rewards == null || rewards.isEmpty()) return;
@@ -115,12 +115,16 @@ public class BonusRewardEditor extends BaseGuiHolder {
             case NEXT -> {
                 if (day < 99) day++;
                 else day = 1;
-                setup(day);
+                closeFlag = false;
+                BonusRewardEditor rewardEditor = new BonusRewardEditor(loginBonusEvent, day, loginBonusManager);
+                player.openInventory(rewardEditor.getInventory());
             }
             case BACK -> {
                 if (day > 1) day--;
                 else day = 99;
-                setup(day);
+                closeFlag = false;
+                BonusRewardEditor rewardEditor = new BonusRewardEditor(loginBonusEvent, day, loginBonusManager);
+                player.openInventory(rewardEditor.getInventory());
             }
             case REWARD -> {
                 List<ItemStack> rewards = loginBonusEvent.getRewards().get(day);
@@ -129,7 +133,6 @@ public class BonusRewardEditor extends BaseGuiHolder {
                     meta.getPersistentDataContainer().remove(key);
                 });
                 rewards.remove(item);
-                for (ItemStack itemStack : rewards) player.sendMessage(itemStack.toString());
                 loginBonusEvent.setReward(day, rewards);
                 setup(day);
             }

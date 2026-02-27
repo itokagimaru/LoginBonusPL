@@ -19,6 +19,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
     LoginBonusManager loginBonusManager;
@@ -141,14 +142,15 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
                             return true;
                         }
 
-                        if (args.length == 3) {//全てのイベントに対して削除を行う
-                            for (LoginBonusEvent event : loginBonusManager.getLoginBonusList().values()){
-                                try {
-                                    loginBonusManager.deletePlayerLoginProgress(target.getUniqueId(), event);
-                                    player.sendMessage(Component.text(target.getName() + " の " + event.getName() + "におけるログイン進捗を削除しました").color(NamedTextColor.YELLOW));
-                                } catch (SQLException e) {
-                                    player.sendMessage(Component.text(target.getName() + " の " + event.getName() + "におけるログイン進捗の削除に失敗しました: " + e.getMessage()).color(NamedTextColor.YELLOW));
+                        if (args.length == 3) {//全てのイベント,全てのサブアカウントに対して削除を行う
+                            try {
+                                for (UUID uuid : loginBonusManager.getAltAccounts(target.getUniqueId())) {
+                                    loginBonusManager.deletePlayerLoginProgress(uuid);
                                 }
+                                player.sendMessage(Component.text(target.getName() + "のログインボーナスを削除しました").color(NamedTextColor.YELLOW));
+                            } catch (SQLException e) {
+                                player.sendMessage(Component.text("ログイン情報の削除に失敗しました").color(NamedTextColor.RED));
+                                player.sendMessage(Component.text(e.getMessage()).color(NamedTextColor.RED));
                             }
                             return true;
                         }
@@ -164,7 +166,10 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
                             return true;
                         }
                         try {
-                            loginBonusManager.deletePlayerLoginProgress(target.getUniqueId(), targetEvent);
+                            for (UUID uuid : loginBonusManager.getAltAccounts(target.getUniqueId())) {
+                                loginBonusManager.deletePlayerLoginProgress(uuid, targetEvent);
+                            }
+                            player.sendMessage(Component.text(target.getName() + " の " + targetEvent.getName() + "におけるログイン進捗を削除しました").color(NamedTextColor.YELLOW));
                             return true;
                         } catch (SQLException e) {
                             player.sendMessage(Component.text(target.getName() + " の " + targetEvent.getName() + "におけるログイン進捗の削除に失敗しました: " + e.getMessage()).color(NamedTextColor.YELLOW));
@@ -182,9 +187,9 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
         player.sendMessage("/loginbonusop permission add <PlayerName>: /loginbonusopを使うための権限を与える");
         player.sendMessage("/loginbonusop permission remove <PlayerName>: /loginbonusopを使うための権限を剥がす");
         player.sendMessage("/loginbonusop gui: ログインボーナス編集GUIを開く");
-        player.sendMessage("/loginbonusop progress delete <PlayerName> <LoginBonusName>: 指定したプレイヤーの指定したイベントのログイン履歴削除します" +
-                "\nイベントの指定がなければすべてのログイン履歴を削除します"); // todo 内容実装
-        player.sendMessage("/loginbonusop progress set <PlayerName> <LoginBonusName> <TotalDays> <LastLoginDayOffset>: 指定したプレイヤーのログイン履歴を設定します" +
+        player.sendMessage("/loginbonusop progress deleteByUUIDAndEvent <PlayerName> <LoginBonusName>: 指定したプレイヤーとそのプレイヤーのサブアカウントの指定したイベントのログイン履歴削除します" +
+                "\nイベントの指定がなければすべてのログイン履歴を削除します");
+        player.sendMessage("/loginbonusop progress set <PlayerName> <LoginBonusName> <TotalDays> <LastLoginDayOffset>: 指定したプレイヤーとそのプレイヤーのサブアカウントのログイン履歴を設定します" +
                 "\nLastLoginDayは省略可能です.省略すると今日の日付で自動補完されます");
     }
 
@@ -205,7 +210,7 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
             }
             if(args[0].equals("progress")) {
                 list.add("set");
-                list.add("delete");
+                list.add("deleteByUUIDAndEvent");
             }
         }
         if (args.length == 3) {
@@ -217,7 +222,7 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 4) {
             if (args[0].equals("progress")) {
-                if (args[1].equals("delete") || args[1].equals("set")){
+                if (args[1].equals("deleteByUUIDAndEvent") || args[1].equals("set")){
                     for (LoginBonusEvent event: loginBonusManager.getLoginBonusList().values()){
                         if (!event.isActive()) continue;
                         list.add(event.getName());
