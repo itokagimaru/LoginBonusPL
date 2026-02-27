@@ -4,7 +4,6 @@ import com.zaxxer.hikari.HikariDataSource;
 import io.github.itokagimaru.loginBonusPL.MySQL.DAO.LoginBonusEventDAO;
 import io.github.itokagimaru.loginBonusPL.MySQL.DAO.PlayerLoginDAO;
 import io.github.itokagimaru.loginBonusPL.MySQL.DAO.RewardDAO;
-import io.github.itokagimaru.loginBonusPL.MySQL.HikariManager;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusEvent;
 
 import java.sql.Connection;
@@ -160,7 +159,17 @@ public class LoginBonusService {
     public boolean deletePlayerLogin(UUID playerUUID, LoginBonusEvent loginBonusEvent) throws SQLException {
         PlayerLoginProgress playerLoginProgress = playerLoginDAO.find(playerUUID, loginBonusEvent.getId()).orElse(null);
         if (playerLoginProgress == null) return false;
-        playerLoginDAO.delete(playerUUID, loginBonusEvent.getId());
+        playerLoginDAO.deleteByUUIDAndEvent(playerUUID, loginBonusEvent.getId());
+        return true;
+    }
+
+    public boolean deletePlayerLogin(UUID playerUUID) throws SQLException {
+        playerLoginDAO.deleteByUUID(playerUUID);
+        return true;
+    }
+
+    public boolean deleteAllPlayerLogin(int eventID) throws SQLException {
+        playerLoginDAO.deleteByEvent(eventID);
         return true;
     }
 }

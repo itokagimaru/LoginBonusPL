@@ -91,7 +91,7 @@ public class PlayerLoginDAO {
     // ------------------------
     // 削除
     // ------------------------
-    public void delete(UUID uuid, int eventId) throws SQLException {
+    public void deleteByUUIDAndEvent(UUID uuid, int eventId) throws SQLException {
 
         String sql = """
             DELETE FROM player_login_progress
@@ -103,6 +103,30 @@ public class PlayerLoginDAO {
 
             ps.setString(1, uuid.toString());
             ps.setInt(2, eventId);
+            ps.executeUpdate();
+        }
+    }
+
+    public void deleteByUUID(UUID uuid) throws SQLException {
+        String sql = """
+            DELETE FROM player_login_progress
+            WHERE uuid = ?
+        """;
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, uuid.toString());
+            ps.executeUpdate();
+        }
+    }
+
+    public void deleteByEvent(int eventId) throws SQLException {
+        String sql = """
+            DELETE FROM player_login_progress
+            WHERE event_id = ?
+        """;
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, eventId);
             ps.executeUpdate();
         }
     }

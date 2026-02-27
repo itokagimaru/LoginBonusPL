@@ -139,17 +139,23 @@ public class LoginBonusEvent {
                 //todo プレイヤーには見えない形でエラーを吐くように.他のところも直す
                 return;
             }
-            if (loginBonusManager.getLastLoginDate(playerLoginProgressList).isAfter(LocalDate.now())) {
+            if (loginBonusManager.getLastLoginDate(playerLoginProgressList).isBefore(LocalDate.now())) {
+                if (loginBonusManager.getMaxTotalLogins(playerLoginProgressList) >= maxDayCount) {
+                    player.sendMessage(Component.text("このログインボーナスの報酬は全て受取済みです" + loginBonusManager.getLastLoginDate(playerLoginProgressList).toString()).color(NamedTextColor.RED));
+                    return;
+                }
                 try {
                     updatePlayerLoginProgressForAltAccount(playerLoginProgressList, loginBonusManager);
                 } catch (SQLException e) {
                     player.sendMessage(Component.text("ログイン情報の更新に失敗したため、ログイン処理を停止しました").color(NamedTextColor.RED));
                     player.sendMessage(Component.text("時間を開けて再度ログインしてください"));
+                    // todo エラー文を吐くようにする
                     return;
                 }
                 giveRewardItem(loginBonusManager.getMaxTotalLogins(playerLoginProgressList), player);
             } else {
-                player.sendMessage(Component.text("本日のログインボーナスは受取済みです").color(NamedTextColor.RED));
+                player.sendMessage(Component.text("本日のログインボーナスは受取済みです" + loginBonusManager.getLastLoginDate(playerLoginProgressList).toString()).color(NamedTextColor.RED));
+                return;
             }
         } else {//サブ垢対策が無効なら...
             PlayerLoginProgress playerLoginProgress;
@@ -158,11 +164,16 @@ public class LoginBonusEvent {
             } catch (SQLException e) {
                 player.sendMessage(Component.text("ログイン情報の取得に失敗したため、ログイン処理を停止しました").color(NamedTextColor.RED));
                 player.sendMessage(Component.text("時間を開けて再度ログインしてください"));
+                // todo エラー文を吐くようにする
                 return;
             }
 
             LocalDate lastLoginDate = playerLoginProgress.getLastLoginDate();
-            if (lastLoginDate.isAfter(LocalDate.now())) {
+            if (lastLoginDate.isBefore(LocalDate.now())) {
+                if (playerLoginProgress.getTotalLoginDays() >= maxDayCount) {
+                    player.sendMessage(Component.text("このログインボーナスの報酬は全て受取済みです").color(NamedTextColor.RED));
+                    return;
+                }
                 playerLoginProgress.addTotalLoginDays();
                 playerLoginProgress.setLastLoginDate(LocalDate.now());
                 int betweenDay;
@@ -179,11 +190,12 @@ public class LoginBonusEvent {
                 } catch (SQLException e) {
                     player.sendMessage(Component.text("ログイン情報の更新に失敗したため、ログイン処理を停止しました").color(NamedTextColor.RED));
                     player.sendMessage(Component.text("時間を開けて再度ログインしてください"));
+                    // todo エラー文を吐くようにする
                     return;
                 }
                 giveRewardItem(playerLoginProgress.getTotalLoginDays(),  player);
             } else {
-                player.sendMessage(Component.text("本日のログインボーナスは受取済みです").color(NamedTextColor.RED));
+                player.sendMessage(Component.text("本日のログインボーナスは受取済みです" + lastLoginDate.toString() + LocalDate.now()).color(NamedTextColor.RED));
             }
         }
 
@@ -220,7 +232,7 @@ public class LoginBonusEvent {
         return count;
     }
 
-    //メソッド名長すぎいいのを思いついたら短くする
+    //メソッド名長すぎ良いのを思いついたら短くする
     private void updatePlayerLoginProgressForAltAccount(List<PlayerLoginProgress> altAccountList, LoginBonusManager loginBonusManager) throws SQLException {
         LocalDate lastLoginDate = loginBonusManager.getLastLoginDate(altAccountList);
         int totalLoginDays = loginBonusManager.getMaxTotalLogins(altAccountList);
@@ -232,13 +244,12 @@ public class LoginBonusEvent {
             betweenDay = 2;
         }
         for (PlayerLoginProgress progress : altAccountList) {
-            progress.setLastLoginDate(lastLoginDate);
-            progress.setTotalLoginDays(totalLoginDays);
+            progress.setLastLoginDate(LocalDate.now());
+            progress.setTotalLoginDays(totalLoginDays + 1);
             if (betweenDay == 1) progress.setContinuousDays(continuousDays + 1);
             else progress.setContinuousDays(continuousDays);
             loginBonusManager.updatePlayerLoginProgress(progress.getUuid(), progress);
         }
-        return;
     }
 
 }

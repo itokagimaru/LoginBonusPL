@@ -107,6 +107,7 @@ public class BonusEventEditorMenu extends BaseGuiHolder {
                     try{
                         int eventId = clickedItem.getPersistentDataContainer().get(eventKey, PersistentDataType.INTEGER);
                         loginBonusManager.deleteLoginBonus(loginBonusManager.getLoginBonusList().get(eventId));
+                        loginBonusManager.deleteAllPlayerLoginProgress(eventId);
                         vieLoginBonusList(loginBonusManager.getLoginBonusList());
                     } catch (SQLException e) {
                         player.sendMessage("削除に失敗しました: " + e.getMessage());
