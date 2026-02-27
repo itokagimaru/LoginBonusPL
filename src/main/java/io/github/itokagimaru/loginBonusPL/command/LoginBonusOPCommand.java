@@ -9,6 +9,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.node.Node;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -99,36 +100,85 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
                             player.sendMessage(Component.text("対象のログインボーナスが見つかりませんでした").color(NamedTextColor.RED));
                             return true;
                         }
-                        PlayerLoginProgress progress;
-                        try {
-                            progress = loginBonusManager.getOrCreatePlayerLoginProgress(target.getUniqueId(), targetEvent);
-                        } catch (SQLException e) {
-                            player.sendMessage(Component.text("ログイン進捗の読み込みに失敗しました: " + e.getMessage()).color(NamedTextColor.RED));
-                            return true;
-                        }
-                        try {
-                            progress.setTotalLoginDays(Integer.parseInt(args[4]));
-                        } catch (NumberFormatException e) {
-                            player.sendMessage(Component.text("TotalDays の値が不正です").color(NamedTextColor.RED));
-                            return false;
-                        }
-                        LocalDate date;
-                        if (args.length == 5) {
-                            date = LocalDate.now().minusDays(1);
-                        } else {
+                        if (loginBonusManager.isAltAccountRestricted()) {
+                            List<PlayerLoginProgress> progresses;
                             try {
-                                date = LocalDate.of(Integer.parseInt(args[5]), Integer.parseInt(args[6]), Integer.parseInt(args[7]));
+                                progresses = loginBonusManager.getAltAccountLoginProgress(target.getUniqueId(), targetEvent);
+                            } catch (SQLException e) {
+                                player.sendMessage(Component.text("ログイン情報の読み込みに失敗しました").color(NamedTextColor.RED));
+                                return true;
+                            }
+                            int totalDays;
+                            try {
+
+                                if (args[4].trim().equals("unmodified")) totalDays = loginBonusManager.getMaxTotalLogins(progresses);
+                                else totalDays = Integer.parseInt(args[4]);
                             } catch (NumberFormatException e) {
-                                player.sendMessage(Component.text("LastLoginDay の値が不正です").color(NamedTextColor.RED));
+                                player.sendMessage(Component.text("TotalDays の値が不正です").color(NamedTextColor.RED));
                                 return false;
                             }
-                        }
-                        progress.setLastLoginDate(date);
-                        try {
-                            loginBonusManager.updatePlayerLoginProgress(target.getUniqueId(), progress);
-                        } catch (SQLException e) {
-                            player.sendMessage(Component.text("ログイン進捗の更新に失敗しました").color(NamedTextColor.RED));
-                            return true;
+                            LocalDate date;
+                            if (args.length == 5) {
+                                date = LocalDate.now().minusDays(1);
+                            } else {
+                                try {
+                                    date = LocalDate.of(Integer.parseInt(args[5]), Integer.parseInt(args[6]), Integer.parseInt(args[7]));
+                                } catch (NumberFormatException e) {
+                                    player.sendMessage(Component.text("LastLoginDay の値が不正です").color(NamedTextColor.RED));
+                                    return false;
+                                }
+                            }
+
+                            for (PlayerLoginProgress progress : progresses) {
+                                progress.setTotalLoginDays(totalDays);
+                                progress.setLastLoginDate(date);
+                                OfflinePlayer altAccountPlayer = Bukkit.getOfflinePlayer(progress.getUuid());
+                                try {
+                                    loginBonusManager.updatePlayerLoginProgress(progress.getUuid(), progress);
+                                    player.sendMessage(Component.text(target.getName() + " のサブアカウント: " + altAccountPlayer.getName() + " のログイン履歴を設定しました").color(NamedTextColor.YELLOW));
+                                } catch (SQLException e) {
+                                    player.sendMessage(Component.text(target.getName() + " のサブアカウント: " + altAccountPlayer.getName() + "のログイン履歴の設定に失敗しました").color(NamedTextColor.RED));
+                                }
+                            }
+                        } else {//サブ垢対策なし
+                            PlayerLoginProgress progress;
+                            try {
+                                progress = loginBonusManager.getOrCreatePlayerLoginProgress(target.getUniqueId(), targetEvent);
+                            } catch (SQLException e) {
+                                player.sendMessage(Component.text("ログイン情報の読み込みに失敗しました").color(NamedTextColor.RED));
+                                return true;
+                            }
+                            int totalDays;
+                            try {
+                                if (args[4].trim().equals("unmodified")) totalDays = progress.getTotalLoginDays();
+                                else totalDays = Integer.parseInt(args[4]);
+                            } catch (NumberFormatException e) {
+                                player.sendMessage(Component.text("TotalDays の値が不正です").color(NamedTextColor.RED));
+                                return false;
+                            }
+                            progress.setTotalLoginDays(totalDays);
+
+                            LocalDate date;
+                            if (args.length == 5) {
+                                date = LocalDate.now().minusDays(1);
+                            } else {
+                                try {
+                                    date = LocalDate.of(Integer.parseInt(args[5]), Integer.parseInt(args[6]), Integer.parseInt(args[7]));
+                                } catch (NumberFormatException e) {
+                                    player.sendMessage(Component.text("LastLoginDay の値が不正です").color(NamedTextColor.RED));
+                                    return false;
+                                }
+                            }
+
+                            progress.setLastLoginDate(date);
+                            try {
+                                loginBonusManager.updatePlayerLoginProgress(target.getUniqueId(), progress);
+                                player.sendMessage(Component.text(target.getName() + "のログイン進捗を更新しました").color(NamedTextColor.YELLOW));
+                                return true;
+                            } catch (SQLException e) {
+                                player.sendMessage(Component.text("ログイン進捗の更新に失敗しました").color(NamedTextColor.RED));
+                                return true;
+                            }
                         }
                     }
                     case "delete" ->{
@@ -144,8 +194,12 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
 
                         if (args.length == 3) {//全てのイベント,全てのサブアカウントに対して削除を行う
                             try {
-                                for (UUID uuid : loginBonusManager.getAltAccounts(target.getUniqueId())) {
-                                    loginBonusManager.deletePlayerLoginProgress(uuid);
+                                if (loginBonusManager.isAltAccountRestricted()) {
+                                    for (UUID uuid : loginBonusManager.getAltAccounts(target.getUniqueId())) {
+                                        loginBonusManager.deletePlayerLoginProgress(uuid);
+                                    }
+                                } else {
+                                    loginBonusManager.deletePlayerLoginProgress(target.getUniqueId());
                                 }
                                 player.sendMessage(Component.text(target.getName() + "のログインボーナスを削除しました").color(NamedTextColor.YELLOW));
                             } catch (SQLException e) {
@@ -166,8 +220,12 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
                             return true;
                         }
                         try {
-                            for (UUID uuid : loginBonusManager.getAltAccounts(target.getUniqueId())) {
-                                loginBonusManager.deletePlayerLoginProgress(uuid, targetEvent);
+                            if (loginBonusManager.isAltAccountRestricted()) {
+                                for (UUID uuid : loginBonusManager.getAltAccounts(target.getUniqueId())) {
+                                    loginBonusManager.deletePlayerLoginProgress(uuid, targetEvent);
+                                }
+                            } else {
+                                loginBonusManager.deletePlayerLoginProgress(target.getUniqueId(), targetEvent);
                             }
                             player.sendMessage(Component.text(target.getName() + " の " + targetEvent.getName() + "におけるログイン進捗を削除しました").color(NamedTextColor.YELLOW));
                             return true;
@@ -190,7 +248,7 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
         player.sendMessage("/loginbonusop progress deleteByUUIDAndEvent <PlayerName> <LoginBonusName>: 指定したプレイヤーとそのプレイヤーのサブアカウントの指定したイベントのログイン履歴削除します" +
                 "\nイベントの指定がなければすべてのログイン履歴を削除します");
         player.sendMessage("/loginbonusop progress set <PlayerName> <LoginBonusName> <TotalDays> <LastLoginDayOffset>: 指定したプレイヤーとそのプレイヤーのサブアカウントのログイン履歴を設定します" +
-                "\nLastLoginDayは省略可能です.省略すると今日の日付で自動補完されます");
+                "\nLastLoginDayは省略可能です.省略すると昨日の日付で自動補完されます");
     }
 
     @Override
