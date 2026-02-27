@@ -2,6 +2,7 @@ package io.github.itokagimaru.loginBonusPL.loginBonus;
 
 import com.zaxxer.hikari.HikariDataSource;
 import io.github.itokagimaru.loginBonusPL.servise.LoginBonusService;
+import org.bukkit.plugin.Plugin;
 
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -12,12 +13,14 @@ public class LoginBonusManager {
     LoginBonusService loginBonusService;
     AltAccountService altAccountService;
     HikariDataSource dataSource;
+    Plugin plugin;
 
-    public LoginBonusManager(HikariDataSource dataSource, LoginBonusService loginBonusService, AltAccountService altAccountService) throws SQLException {
+    public LoginBonusManager(HikariDataSource dataSource, LoginBonusService loginBonusService, AltAccountService altAccountService, Plugin plugin) throws SQLException {
         this.dataSource = dataSource;
         this.loginBonusService = loginBonusService;
         this.altAccountService = altAccountService;
         loginBonusList = loginBonusService.getAllEvents();
+        this.plugin = plugin;
     }
 
     public void createNewLoginBonus() throws SQLException {
@@ -108,8 +111,12 @@ public class LoginBonusManager {
         return max;
     }
 
-    //ゲッターってやつ
     public Map<Integer,LoginBonusEvent> getLoginBonusList() {
         return loginBonusList;
+    }
+
+
+    public void outPutError(String message) {
+        plugin.getLogger().warning(message);
     }
 }

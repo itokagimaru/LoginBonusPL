@@ -40,6 +40,8 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
             return false;
         }
 
+        
+
         switch (args[0]){
             case "help" ->{
                 showHelp(player);
@@ -106,6 +108,7 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
                                 progresses = loginBonusManager.getAltAccountLoginProgress(target.getUniqueId(), targetEvent);
                             } catch (SQLException e) {
                                 player.sendMessage(Component.text("ログイン情報の読み込みに失敗しました").color(NamedTextColor.RED));
+                                loginBonusManager.outPutError(target.getName() + " およびそのサブアカウントのイベント " + targetEvent.getName() + "のログイン情報の読み込みに失敗しました: " + e.getMessage());
                                 return true;
                             }
                             int totalDays;
@@ -138,6 +141,7 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
                                     player.sendMessage(Component.text(target.getName() + " のサブアカウント: " + altAccountPlayer.getName() + " のログイン履歴を設定しました").color(NamedTextColor.YELLOW));
                                 } catch (SQLException e) {
                                     player.sendMessage(Component.text(target.getName() + " のサブアカウント: " + altAccountPlayer.getName() + "のログイン履歴の設定に失敗しました").color(NamedTextColor.RED));
+                                    loginBonusManager.outPutError(target.getName() + " のサブアカウント: " + altAccountPlayer.getName() + "のログイン履歴の設定に失敗しました: " + e.getMessage());
                                 }
                             }
                         } else {//サブ垢対策なし
@@ -146,6 +150,7 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
                                 progress = loginBonusManager.getOrCreatePlayerLoginProgress(target.getUniqueId(), targetEvent);
                             } catch (SQLException e) {
                                 player.sendMessage(Component.text("ログイン情報の読み込みに失敗しました").color(NamedTextColor.RED));
+                                loginBonusManager.outPutError(target.getName() + "のイベント " + targetEvent.getName() + "のログイン情報の読み込みに失敗しました: " + e.getMessage());
                                 return true;
                             }
                             int totalDays;
@@ -177,6 +182,7 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
                                 return true;
                             } catch (SQLException e) {
                                 player.sendMessage(Component.text("ログイン進捗の更新に失敗しました").color(NamedTextColor.RED));
+                                loginBonusManager.outPutError(target.getName() + "のログイン進捗の更新に失敗しました: " + e.getMessage());
                                 return true;
                             }
                         }
@@ -204,7 +210,7 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
                                 player.sendMessage(Component.text(target.getName() + "のログインボーナスを削除しました").color(NamedTextColor.YELLOW));
                             } catch (SQLException e) {
                                 player.sendMessage(Component.text("ログイン情報の削除に失敗しました").color(NamedTextColor.RED));
-                                player.sendMessage(Component.text(e.getMessage()).color(NamedTextColor.RED));
+                                loginBonusManager.outPutError(target.getName() + "のログイン情報の削除に失敗しました: " + e.getMessage());
                             }
                             return true;
                         }
@@ -231,6 +237,7 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
                             return true;
                         } catch (SQLException e) {
                             player.sendMessage(Component.text(target.getName() + " の " + targetEvent.getName() + "におけるログイン進捗の削除に失敗しました: " + e.getMessage()).color(NamedTextColor.YELLOW));
+                            loginBonusManager.outPutError(target.getName() + " のイベント " + targetEvent.getName() + "のログイン進捗の削除に失敗しました: " + e.getMessage());
                         }
                     }
                 }

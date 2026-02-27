@@ -36,7 +36,6 @@ public final class LoginBonusPL extends JavaPlugin {
 
     @Override
     public void onEnable() {
-
         // config.yml が存在しなければ生成
         saveDefaultConfig();
 
@@ -113,7 +112,7 @@ public final class LoginBonusPL extends JavaPlugin {
             RewardDAO eventRewardDAO = new RewardDAO(loginBonusHikariManager.getDataSource());
             PlayerLoginDAO playerLoginDAO = new PlayerLoginDAO(loginBonusHikariManager.getDataSource());
             LoginBonusService loginBonusService = new LoginBonusService(loginBonusHikariManager.getDataSource(), loginBonusEventDAO, eventRewardDAO, playerLoginDAO);
-            loginBonusManager = new LoginBonusManager(loginBonusHikariManager.getDataSource(), loginBonusService, altAccountService);
+            loginBonusManager = new LoginBonusManager(loginBonusHikariManager.getDataSource(), loginBonusService, altAccountService, this);
         } catch (SQLException e) {
             getLogger().warning("LoginBonusDataBase への接続に失敗: " + e.getMessage());
             getServer().getPluginManager().disablePlugin(this);
