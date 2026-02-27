@@ -136,7 +136,7 @@ public class LoginBonusEvent {
             } catch (SQLException e) {
                 player.sendMessage(Component.text("ログイン情報の取得に失敗したため、ログイン処理を停止しました").color(NamedTextColor.RED));
                 player.sendMessage(Component.text("時間を開けて再度ログインしてください"));
-                //todo プレイヤーには見えない形でエラーを吐くように.他のところも直す
+                loginBonusManager.outPutError(player.getName() + "のログイン情報の取得に失敗しました: " + e.getMessage());
                 return;
             }
             if (loginBonusManager.getLastLoginDate(playerLoginProgressList).isBefore(LocalDate.now())) {
@@ -149,7 +149,7 @@ public class LoginBonusEvent {
                 } catch (SQLException e) {
                     player.sendMessage(Component.text("ログイン情報の更新に失敗したため、ログイン処理を停止しました").color(NamedTextColor.RED));
                     player.sendMessage(Component.text("時間を開けて再度ログインしてください"));
-                    // todo エラー文を吐くようにする
+                    loginBonusManager.outPutError(player.getName() + "のログイン情報の更新に失敗しました: " + e.getMessage());
                     return;
                 }
                 giveRewardItem(loginBonusManager.getMaxTotalLogins(playerLoginProgressList), player);
@@ -164,7 +164,7 @@ public class LoginBonusEvent {
             } catch (SQLException e) {
                 player.sendMessage(Component.text("ログイン情報の取得に失敗したため、ログイン処理を停止しました").color(NamedTextColor.RED));
                 player.sendMessage(Component.text("時間を開けて再度ログインしてください"));
-                // todo エラー文を吐くようにする
+                loginBonusManager.outPutError(player.getName() + "のログイン情報の取得に失敗しました: " + e.getMessage());
                 return;
             }
 
@@ -190,7 +190,7 @@ public class LoginBonusEvent {
                 } catch (SQLException e) {
                     player.sendMessage(Component.text("ログイン情報の更新に失敗したため、ログイン処理を停止しました").color(NamedTextColor.RED));
                     player.sendMessage(Component.text("時間を開けて再度ログインしてください"));
-                    // todo エラー文を吐くようにする
+                    loginBonusManager.outPutError(player.getName() + "のログイン情報の更新に失敗しました: " + e.getMessage());
                     return;
                 }
                 giveRewardItem(playerLoginProgress.getTotalLoginDays(),  player);
