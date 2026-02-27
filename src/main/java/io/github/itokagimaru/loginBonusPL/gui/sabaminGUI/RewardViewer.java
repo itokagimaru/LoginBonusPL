@@ -2,6 +2,7 @@ package io.github.itokagimaru.loginBonusPL.gui.sabaminGUI;
 
 import io.github.itokagimaru.loginBonusPL.LoginBonusPL;
 import io.github.itokagimaru.loginBonusPL.gui.BaseGuiHolder;
+import io.github.itokagimaru.loginBonusPL.gui.adminGUI.BonusRewardEditor;
 import io.github.itokagimaru.loginBonusPL.loginBonus.AltAccountService;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusEvent;
 import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusManager;
@@ -79,16 +80,17 @@ public class RewardViewer extends BaseGuiHolder {
         }
         List<ItemStack> rewards = loginBonusEvent.getRewardByDay(day);
         if (rewards == null || rewards.isEmpty()) return;
+        int rewardIndex = 0;
         for (int i = 0; i < INV_SIZE/9; i++) {
             for (int j = 1; j < 8; j++) {
                 int slot = i * 9 + j;
-                int rewardIndex = slot -1;
                 if (rewardIndex >= rewards.size()) return;
                 ItemStack reward = rewards.get(rewardIndex).clone();
                 reward.editMeta(meta -> {
                     meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, IconID.REWARD.getId());
                 });
                 inv.setItem(slot, reward);
+                rewardIndex++;
             }
         }
     }
