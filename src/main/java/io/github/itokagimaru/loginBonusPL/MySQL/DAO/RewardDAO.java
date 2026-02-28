@@ -14,7 +14,8 @@ public class RewardDAO {
     ExecutorService dbExecutor;
     private final DataSource dataSource;
 
-    public RewardDAO(DataSource dataSource) {
+    public RewardDAO(ExecutorService dbExecutor, DataSource dataSource) {
+        this.dbExecutor = dbExecutor;
         this.dataSource = dataSource;
     }
 

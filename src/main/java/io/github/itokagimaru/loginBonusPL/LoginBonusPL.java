@@ -110,9 +110,9 @@ public final class LoginBonusPL extends JavaPlugin {
 
         // DAOの作成,サービス層,マネージャの作成
         try{
-            LoginBonusEventDAO loginBonusEventDAO = new LoginBonusEventDAO(loginBonusHikariManager.getDataSource());
-            RewardDAO eventRewardDAO = new RewardDAO(loginBonusHikariManager.getDataSource());
-            PlayerLoginDAO playerLoginDAO = new PlayerLoginDAO(loginBonusHikariManager.getDataSource());
+            LoginBonusEventDAO loginBonusEventDAO = new LoginBonusEventDAO(dbExecutor, loginBonusHikariManager.getDataSource());
+            RewardDAO eventRewardDAO = new RewardDAO(dbExecutor,loginBonusHikariManager.getDataSource());
+            PlayerLoginDAO playerLoginDAO = new PlayerLoginDAO(dbExecutor,loginBonusHikariManager.getDataSource());
             LoginBonusService loginBonusService = new LoginBonusService(loginBonusHikariManager.getDataSource(), loginBonusEventDAO, eventRewardDAO, playerLoginDAO);
             loginBonusManager = new LoginBonusManager(loginBonusHikariManager.getDataSource(), loginBonusService, altAccountService, this);
         } catch (SQLException e) {
