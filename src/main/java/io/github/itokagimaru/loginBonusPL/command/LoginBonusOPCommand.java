@@ -40,7 +40,10 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
             return false;
         }
 
-        
+        if (args.length == 0) {
+            showHelp(player);
+            return false;
+        }
 
         switch (args[0]){
             case "help" ->{

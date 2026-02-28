@@ -25,6 +25,8 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.sql.SQLException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public final class LoginBonusPL extends JavaPlugin {
 
@@ -33,6 +35,7 @@ public final class LoginBonusPL extends JavaPlugin {
     private static LoginBonusPL instance;
     private LuckPerms luckPerms;
     private LoginBonusManager loginBonusManager;
+    private ExecutorService dbExecutor;
 
     @Override
     public void onEnable() {
@@ -90,18 +93,17 @@ public final class LoginBonusPL extends JavaPlugin {
             getServer().getPluginManager().disablePlugin(this);
         }
 
+        // 非同期処理のためのexecutorの作成
+        dbExecutor = Executors.newFixedThreadPool(4);
 
         // サブ垢対策用のDAO+クラスの作成
         AltAccountService altAccountService = new AltAccountService(null, false);//私のサーバではサブ垢対策用のDBにアクセスできないので他機能テスト時にエラーを吐くためon/off機能が欲しかった
         if (altAccountEnabled) {
             try {
-                ConnectionLogDAO connectionLogDAO = new ConnectionLogDAO(altAccountHikariManager.getDataSource(), altAccountTableName, altAccountColumnUUIDName, altAccountColumnIPName);
+                ConnectionLogDAO connectionLogDAO = new ConnectionLogDAO(dbExecutor, altAccountHikariManager.getDataSource(), altAccountTableName, altAccountColumnUUIDName, altAccountColumnIPName);
                 altAccountService = new AltAccountService(connectionLogDAO, true);
-            } catch (SQLException e) {
+            } catch (RuntimeException e) {
                 getLogger().warning("AltAccountDataBase への接続に失敗: " + e.getMessage());
-                getServer().getPluginManager().disablePlugin(this);
-            } catch (IllegalStateException e){
-                getLogger().warning(e.getMessage());
                 getServer().getPluginManager().disablePlugin(this);
             }
         }
@@ -155,6 +157,9 @@ public final class LoginBonusPL extends JavaPlugin {
         }
         if (altAccountHikariManager != null) {
             altAccountHikariManager.shutdown();
+        }
+        if (dbExecutor != null) {
+            dbExecutor.shutdown();
         }
     }
 
