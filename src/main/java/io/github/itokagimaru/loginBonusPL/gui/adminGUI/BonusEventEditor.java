@@ -15,7 +15,6 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.sql.SQLException;
 import java.util.List;
 
 public class BonusEventEditor extends BaseGuiHolder {
@@ -194,12 +193,17 @@ public class BonusEventEditor extends BaseGuiHolder {
     public void onClose(Player player) {
         if (closeFlag) {
             if (saveFlag) {
-                try {
-                    loginBonusManager.saveLoginBonus(event);
-                    player.sendMessage(event.getName() + "を保存しました");
-                } catch (SQLException e) {
-                    player.sendMessage("ログインボーナスの保存に失敗しました : " + e.getMessage());
-                }
+                loginBonusManager.saveLoginBonus(event).thenRun(() -> {
+                    Bukkit.getScheduler().runTask(loginBonusManager.getPlugin(), () -> {
+                        player.sendMessage(event.getName() + "を保存しました");
+                    });
+                }).exceptionally(ex -> {
+                    Bukkit.getScheduler().runTask(loginBonusManager.getPlugin(), () -> {
+                        player.sendMessage("ログインボーナスの保存に失敗しました : " + ex.getMessage());
+                        loginBonusManager.outPutError(ex.getMessage());
+                    });
+                    return null;
+                });
             }
             closeFlag = false;
             BonusEventEditorMenu bonusEventEditorMenu = new BonusEventEditorMenu(loginBonusManager);

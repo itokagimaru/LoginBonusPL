@@ -7,125 +7,153 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 public class LoginBonusEventDAO {
-
+    ExecutorService dbExecutor;
     private final DataSource dataSource;
 
-    public LoginBonusEventDAO(DataSource dataSource) {
+    public LoginBonusEventDAO(ExecutorService dbExecutor, DataSource dataSource) {
+        this.dbExecutor = dbExecutor;
         this.dataSource = dataSource;
     }
 
-    public int createEvent(String name,
-                           LocalDate startDate,
-                           LocalDate endDate,
-                           boolean active) throws SQLException {
-
-        String sql = """
+    public CompletableFuture<Integer> createEvent(String name,
+                                                  LocalDate startDate,
+                                                  LocalDate endDate,
+                                                  boolean active) throws RuntimeException {
+        return CompletableFuture.supplyAsync(() -> {
+            String sql = """
             INSERT INTO login_bonus_event (name, start_date, end_date,max_day_count, is_active)
             VALUES (?, ?, ?, ?, ?)
-        """;
+            """;
+            try {
+                try (Connection conn = dataSource.getConnection();
+                     PreparedStatement ps =
+                             conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps =
-                     conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                    ps.setString(1, name);
+                    ps.setDate(2, Date.valueOf(startDate));
+                    ps.setDate(3, Date.valueOf(endDate));
+                    ps.setInt(4, 0);
+                    ps.setBoolean(5, active);
 
-            ps.setString(1, name);
-            ps.setDate(2, Date.valueOf(startDate));
-            ps.setDate(3, Date.valueOf(endDate));
-            ps.setInt(4, 0);
-            ps.setBoolean(5, active);
+                    ps.executeUpdate();
 
-            ps.executeUpdate();
-
-            try (ResultSet rs = ps.getGeneratedKeys()) {
-                if (rs.next()) {
-                    return rs.getInt(1);
+                    try (ResultSet rs = ps.getGeneratedKeys()) {
+                        if (rs.next()) {
+                            return rs.getInt(1);
+                        }
+                    }
                 }
-            }
-        }
 
-        throw new SQLException("Failed to create event");
+                throw new SQLException("Failed to create event");
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }, dbExecutor);
+
     }
 
-    public LoginBonusEvent getEventById(int value) throws SQLException {
+    public CompletableFuture<LoginBonusEvent> getEventById(int value) throws RuntimeException {
+        return CompletableFuture.supplyAsync(() -> {
+            String sql = "SELECT * FROM login_bonus_event WHERE id = ?";
+            try {
+                try (Connection conn = dataSource.getConnection();
+                     PreparedStatement ps = conn.prepareStatement(sql)) {
 
-        String sql = "SELECT * FROM login_bonus_event WHERE id = ?";
+                    ps.setInt(1, value);
 
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, value);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return new LoginBonusEvent(
-                            rs.getInt("id"),
-                            rs.getString("name"),
-                            rs.getDate("start_date").toLocalDate(),
-                            rs.getDate("end_date").toLocalDate(),
-                            rs.getBoolean("is_active"),
-                            null // rewardsはServiceで詰める
-                    );
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            return new LoginBonusEvent(
+                                    rs.getInt("id"),
+                                    rs.getString("name"),
+                                    rs.getDate("start_date").toLocalDate(),
+                                    rs.getDate("end_date").toLocalDate(),
+                                    rs.getBoolean("is_active"),
+                                    null // rewardsはServiceで詰める
+                            );
+                        }
+                    }
                 }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
             }
-        }
-
-        return null;
+            return null;
+        }, dbExecutor);
     }
 
-    public List<LoginBonusEvent> getAllEvents() throws SQLException {
+    public CompletableFuture<List<LoginBonusEvent>> getAllEvents() throws RuntimeException {
+        return CompletableFuture.supplyAsync(() -> {
+            String sql = "SELECT * FROM login_bonus_event ORDER BY id ASC";
 
-        String sql = "SELECT * FROM login_bonus_event ORDER BY id ASC";
+            List<LoginBonusEvent> events = new ArrayList<>();
 
-        List<LoginBonusEvent> events = new ArrayList<>();
+            try {
+                try (Connection conn = dataSource.getConnection();
+                     PreparedStatement ps = conn.prepareStatement(sql);
+                     ResultSet rs = ps.executeQuery()) {
 
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-
-            while (rs.next()) {
-                events.add(new LoginBonusEvent(
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getDate("start_date").toLocalDate(),
-                        rs.getDate("end_date").toLocalDate(),
-                        rs.getBoolean("is_active"),
-                        null
-                ));
+                    while (rs.next()) {
+                        events.add(new LoginBonusEvent(
+                                rs.getInt("id"),
+                                rs.getString("name"),
+                                rs.getDate("start_date").toLocalDate(),
+                                rs.getDate("end_date").toLocalDate(),
+                                rs.getBoolean("is_active"),
+                                null
+                        ));
+                    }
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
             }
-        }
 
-        return events;
+            return events;
+        }, dbExecutor);
+
     }
 
-    public void updateEvent(Connection conn, LoginBonusEvent event) throws SQLException {
+    public CompletableFuture<Void> updateEvent(Connection conn, LoginBonusEvent event) throws RuntimeException {
+        return CompletableFuture.runAsync(() -> {
+            String sql = """
+            UPDATE login_bonus_event
+            SET name = ?, start_date = ?, end_date = ?, max_day_count = ?, is_active = ?
+            WHERE id = ?
+            """;
 
-        String sql = """
-        UPDATE login_bonus_event
-        SET name = ?, start_date = ?, end_date = ?, max_day_count = ?, is_active = ?
-        WHERE id = ?
-    """;
-
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, event.getName());
-            ps.setDate(2, Date.valueOf(event.getStartDate()));
-            ps.setDate(3, Date.valueOf(event.getEndDate()));
-            ps.setInt(4, event.getMaxDayCount());
-            ps.setBoolean(5, event.isActive());
-            ps.setInt(6, event.getId());
-            ps.executeUpdate();
-        }
+            try {
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, event.getName());
+                    ps.setDate(2, Date.valueOf(event.getStartDate()));
+                    ps.setDate(3, Date.valueOf(event.getEndDate()));
+                    ps.setInt(4, event.getMaxDayCount());
+                    ps.setBoolean(5, event.isActive());
+                    ps.setInt(6, event.getId());
+                    ps.executeUpdate();
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }, dbExecutor);
     }
 
-    public void deleteById(Connection conn, int eventId) throws SQLException {
+    public CompletableFuture<Void> deleteById(Connection conn, int eventId) throws RuntimeException {
+        return CompletableFuture.runAsync(() -> {
+            String sql = "DELETE FROM login_bonus_event WHERE id = ?";
 
-        String sql = "DELETE FROM login_bonus_event WHERE id = ?";
+            try {
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, eventId);
+                    ps.executeUpdate();
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }, dbExecutor);
 
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, eventId);
-            ps.executeUpdate();
-        }
     }
 
 }

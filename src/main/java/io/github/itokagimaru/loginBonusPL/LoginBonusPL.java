@@ -25,6 +25,8 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.sql.SQLException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public final class LoginBonusPL extends JavaPlugin {
 
@@ -33,6 +35,7 @@ public final class LoginBonusPL extends JavaPlugin {
     private static LoginBonusPL instance;
     private LuckPerms luckPerms;
     private LoginBonusManager loginBonusManager;
+    private ExecutorService dbExecutor;
 
     @Override
     public void onEnable() {
@@ -75,43 +78,41 @@ public final class LoginBonusPL extends JavaPlugin {
                 altAccountPassword,
                 altAccountPoolSize
         );
+        // 非同期処理のためのexecutorの作成
+        dbExecutor = Executors.newFixedThreadPool(4);
+
 
         // テーブル生成
         try {
             new LoginBonusTableInitializer(
+                    dbExecutor,
                     loginBonusHikariManager.getDataSource()
-            ).initialize();
-
+            ).initialize().join();
             getLogger().info("データベース接続 & テーブル初期化完了");
-
         } catch (Exception e) {
-            getLogger().severe("データベース初期化失敗");
-            e.printStackTrace();
+            getLogger().severe("データベース初期化失敗: " + e.getMessage());
             getServer().getPluginManager().disablePlugin(this);
+            return;
         }
-
 
         // サブ垢対策用のDAO+クラスの作成
         AltAccountService altAccountService = new AltAccountService(null, false);//私のサーバではサブ垢対策用のDBにアクセスできないので他機能テスト時にエラーを吐くためon/off機能が欲しかった
         if (altAccountEnabled) {
             try {
-                ConnectionLogDAO connectionLogDAO = new ConnectionLogDAO(altAccountHikariManager.getDataSource(), altAccountTableName, altAccountColumnUUIDName, altAccountColumnIPName);
+                ConnectionLogDAO connectionLogDAO = new ConnectionLogDAO(dbExecutor, altAccountHikariManager.getDataSource(), altAccountTableName, altAccountColumnUUIDName, altAccountColumnIPName);
                 altAccountService = new AltAccountService(connectionLogDAO, true);
-            } catch (SQLException e) {
+            } catch (RuntimeException e) {
                 getLogger().warning("AltAccountDataBase への接続に失敗: " + e.getMessage());
-                getServer().getPluginManager().disablePlugin(this);
-            } catch (IllegalStateException e){
-                getLogger().warning(e.getMessage());
                 getServer().getPluginManager().disablePlugin(this);
             }
         }
 
         // DAOの作成,サービス層,マネージャの作成
         try{
-            LoginBonusEventDAO loginBonusEventDAO = new LoginBonusEventDAO(loginBonusHikariManager.getDataSource());
-            RewardDAO eventRewardDAO = new RewardDAO(loginBonusHikariManager.getDataSource());
-            PlayerLoginDAO playerLoginDAO = new PlayerLoginDAO(loginBonusHikariManager.getDataSource());
-            LoginBonusService loginBonusService = new LoginBonusService(loginBonusHikariManager.getDataSource(), loginBonusEventDAO, eventRewardDAO, playerLoginDAO);
+            LoginBonusEventDAO loginBonusEventDAO = new LoginBonusEventDAO(dbExecutor, loginBonusHikariManager.getDataSource());
+            RewardDAO eventRewardDAO = new RewardDAO(dbExecutor,loginBonusHikariManager.getDataSource());
+            PlayerLoginDAO playerLoginDAO = new PlayerLoginDAO(dbExecutor,loginBonusHikariManager.getDataSource());
+            LoginBonusService loginBonusService = new LoginBonusService(dbExecutor, loginBonusHikariManager.getDataSource(), loginBonusEventDAO, eventRewardDAO, playerLoginDAO);
             loginBonusManager = new LoginBonusManager(loginBonusHikariManager.getDataSource(), loginBonusService, altAccountService, this);
         } catch (SQLException e) {
             getLogger().warning("LoginBonusDataBase への接続に失敗: " + e.getMessage());
@@ -133,7 +134,7 @@ public final class LoginBonusPL extends JavaPlugin {
 
         //command の登録
         if (loginBonusManager != null) {
-            registerCommandWithTabCompleter("loginbonusop", new LoginBonusOPCommand(loginBonusManager, luckPerms), new LoginBonusOPCommand(loginBonusManager, luckPerms));
+            registerCommandWithTabCompleter("loginbonusop", new LoginBonusOPCommand(loginBonusManager), new LoginBonusOPCommand(loginBonusManager));
             registerCommandWithTabCompleter("loginbonus", new LoginBonusCommand(loginBonusManager, altAccountService), new LoginBonusCommand(loginBonusManager, altAccountService));
         }
 
@@ -155,6 +156,9 @@ public final class LoginBonusPL extends JavaPlugin {
         }
         if (altAccountHikariManager != null) {
             altAccountHikariManager.shutdown();
+        }
+        if (dbExecutor != null) {
+            dbExecutor.shutdown();
         }
     }
 

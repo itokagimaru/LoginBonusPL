@@ -4,16 +4,21 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 public class LoginBonusEventTable {
+    ExecutorService dbExecutor;
     private final DataSource dataSource;
 
-    public LoginBonusEventTable(DataSource dataSource) {
+    public LoginBonusEventTable(ExecutorService dbExecutor, DataSource dataSource) {
+        this.dbExecutor = dbExecutor;
         this.dataSource = dataSource;
     }
 
-    public void createTable() throws SQLException {
-        String sql = """
+    public CompletableFuture<Void> createTable() throws RuntimeException {
+        return CompletableFuture.runAsync(() -> {
+            String sql = """
             CREATE TABLE IF NOT EXISTS login_bonus_event (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(64) NOT NULL,
@@ -23,10 +28,14 @@ public class LoginBonusEventTable {
                 is_active BOOLEAN NOT NULL
             );
         """;
-
-        try (Connection conn = dataSource.getConnection();
-             Statement stmt = conn.createStatement()) {
-            stmt.executeUpdate(sql);
-        }
+            try {
+                try (Connection conn = dataSource.getConnection();
+                     Statement stmt = conn.createStatement()) {
+                    stmt.executeUpdate(sql);
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }, dbExecutor);
     }
 }

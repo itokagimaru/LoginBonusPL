@@ -6,96 +6,96 @@ import org.bukkit.inventory.ItemStack;
 import javax.sql.DataSource;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class RewardDAO {
-
+    ExecutorService dbExecutor;
     private final DataSource dataSource;
 
-    public RewardDAO(DataSource dataSource) {
+    public RewardDAO(ExecutorService dbExecutor, DataSource dataSource) {
+        this.dbExecutor = dbExecutor;
         this.dataSource = dataSource;
     }
 
-    public void insertReward(Connection conn,
-                             int eventId,
-                             int day,
-                             String rewardData) throws SQLException {
-
-        String sql = """
-        INSERT INTO login_bonus_reward
-        (event_id, day, reward_data)
-        VALUES (?, ?, ?)
-    """;
-
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, eventId);
-            ps.setInt(2, day);
-            ps.setString(3, rewardData);
-            ps.executeUpdate();
-        }
-    }
-
-
-    public Map<Integer, List<ItemStack>> getRewardsByEventId(int eventId)
-            throws SQLException {
-
-        String sql = """
+    public CompletableFuture<Map<Integer, List<ItemStack>>> getRewardsByEventId(int eventId) throws RuntimeException {
+        return CompletableFuture.supplyAsync(() -> {
+            String sql = """
             SELECT day, reward_data
             FROM login_bonus_reward
             WHERE event_id = ?
         """;
 
-        Map<Integer, List<ItemStack>> rewards = new HashMap<>();
+            Map<Integer, List<ItemStack>> rewards = new HashMap<>();
 
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+            try {
+                try (Connection conn = dataSource.getConnection();
+                     PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setInt(1, eventId);
+                    ps.setInt(1, eventId);
 
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    int day = rs.getInt("day");
-                    String yaml = rs.getString("reward_data");
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            int day = rs.getInt("day");
+                            String yaml = rs.getString("reward_data");
 
-                    rewards.put(day, ItemStackUtil.fromYaml(yaml));
+                            rewards.put(day, ItemStackUtil.fromYaml(yaml));
+                        }
+                    }
                 }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
             }
-        }
 
-        return rewards;
+            return rewards;
+        }, dbExecutor);
+
     }
 
-    public void saveOrUpdateReward(Connection conn, int eventId,
+    public CompletableFuture<Void> saveOrUpdateReward(Connection conn,
+                                   int eventId,
                                    int day,
                                    List<ItemStack> items)
-            throws SQLException {
+            throws RuntimeException {
+        return CompletableFuture.runAsync(() -> {
+            String yaml = ItemStackUtil.toYaml(items);
 
-        String yaml = ItemStackUtil.toYaml(items);
+            String sql = """
+                INSERT INTO login_bonus_reward (event_id, day, reward_data)
+                VALUES (?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                reward_data = VALUES(reward_data)
+            """;
 
-        String sql = """
-        INSERT INTO login_bonus_reward (event_id, day, reward_data)
-        VALUES (?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-            reward_data = VALUES(reward_data)
-    """;
+            try {
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
 
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, eventId);
+                    ps.setInt(2, day);
+                    ps.setString(3, yaml);
 
-            ps.setInt(1, eventId);
-            ps.setInt(2, day);
-            ps.setString(3, yaml);
+                    ps.executeUpdate();
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }, dbExecutor);
 
-            ps.executeUpdate();
-        }
     }
 
-    public void deleteAllByEventId(Connection conn, int eventId) throws SQLException {
-
-        String sql = "DELETE FROM login_bonus_reward WHERE event_id = ?";
-
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, eventId);
-            ps.executeUpdate();
-        }
+    public CompletableFuture<Void> deleteAllByEventId(Connection conn, int eventId) throws RuntimeException {
+        return CompletableFuture.runAsync(() -> {
+            String sql = "DELETE FROM login_bonus_reward WHERE event_id = ?";
+            try {
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, eventId);
+                    ps.executeUpdate();
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }, dbExecutor);
     }
 
 }

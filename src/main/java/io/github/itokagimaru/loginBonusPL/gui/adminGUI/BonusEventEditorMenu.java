@@ -14,7 +14,6 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
@@ -104,24 +103,33 @@ public class BonusEventEditorMenu extends BaseGuiHolder {
                     closeFlag = false;
                     player.openInventory(bonusEventEditor.getInventory());
                 } else if (event.isRightClick() && event.isShiftClick()) {
-                    try{
-                        int eventId = clickedItem.getPersistentDataContainer().get(eventKey, PersistentDataType.INTEGER);
-                        loginBonusManager.deleteLoginBonus(loginBonusManager.getLoginBonusList().get(eventId));
-                        loginBonusManager.deleteAllPlayerLoginProgress(eventId);
-                        vieLoginBonusList(loginBonusManager.getLoginBonusList());
-                    } catch (SQLException e) {
-                        player.sendMessage("削除に失敗しました: " + e.getMessage());
-                    }
+                    int eventId = clickedItem.getPersistentDataContainer().get(eventKey, PersistentDataType.INTEGER);
+                    loginBonusManager.deleteLoginBonus(loginBonusManager.getLoginBonusList().get(eventId)).thenRun(()-> {
+                        loginBonusManager.deleteAllPlayerLoginProgress(eventId).thenRun(() -> {
+                            Bukkit.getScheduler().runTask(loginBonusManager.getPlugin(), () -> {
+                                vieLoginBonusList(loginBonusManager.getLoginBonusList());
+                            });
+                        });
+                    }).exceptionally(ex -> {
+                        Bukkit.getScheduler().runTask(loginBonusManager.getPlugin(), () -> {
+                            player.sendMessage(Component.text("削除に失敗しました").color(NamedTextColor.RED));
+                            loginBonusManager.outPutError(ex.getMessage());
+                        });
+                        return null;
+                    });
                 }
             }
             case ADD_NEW_BONUS -> {
                 if (!event.isLeftClick()) return;
-                try {
-                    loginBonusManager.createNewLoginBonus();
+                loginBonusManager.createNewLoginBonus().thenRun(() -> {
                     vieLoginBonusList(loginBonusManager.getLoginBonusList());
-                } catch (SQLException e) {
-                    player.sendMessage("新規作成に失敗しました: " + e.getMessage());
-                }
+                }).exceptionally(ex -> {
+                    Bukkit.getScheduler().runTask(loginBonusManager.getPlugin(), () -> {
+                        player.sendMessage("新規作成に失敗しました: " + ex.getMessage());
+                    });
+                    return null;
+                });
+
             }
             case CLOSE -> {
                 player.closeInventory();
