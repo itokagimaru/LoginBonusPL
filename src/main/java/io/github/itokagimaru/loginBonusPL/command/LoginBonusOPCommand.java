@@ -6,8 +6,6 @@ import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusManager;
 import io.github.itokagimaru.loginBonusPL.loginBonus.PlayerLoginProgress;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.luckperms.api.LuckPerms;
-import net.luckperms.api.node.Node;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -88,8 +86,8 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
             if (loginBonusManager.isAltAccountRestricted()) {
 
                 loginBonusManager.getAltAccounts(uuid)
-                        .thenCompose(uuids -> {
-                            List<CompletableFuture<Void>> futures = uuids.stream()
+                        .thenCompose(altAccounts -> {
+                            List<CompletableFuture<Void>> futures = altAccounts.stream()
                                     .map(loginBonusManager::deletePlayerLoginProgress)
                                     .toList();
                             return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
@@ -311,7 +309,7 @@ public class LoginBonusOPCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 4) {
             if (args[0].equals("progress")) {
-                if (args[1].equals("deleteByUUIDAndEvent") || args[1].equals("set")){
+                if (args[1].equals("delete") || args[1].equals("set")){
                     for (LoginBonusEvent event: loginBonusManager.getLoginBonusList().values()){
                         if (!event.isActive()) continue;
                         list.add(event.getName());
