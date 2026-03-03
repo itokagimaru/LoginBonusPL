@@ -87,7 +87,6 @@ public class RewardDAO {
     public CompletableFuture<Void> deleteAllByEventId(Connection conn, int eventId) throws RuntimeException {
         return CompletableFuture.runAsync(() -> {
             String sql = "DELETE FROM login_bonus_reward WHERE event_id = ?";
-
             try {
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, eventId);

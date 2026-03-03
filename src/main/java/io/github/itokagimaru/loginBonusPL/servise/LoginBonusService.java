@@ -9,168 +9,223 @@ import io.github.itokagimaru.loginBonusPL.loginBonus.LoginBonusEvent;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
 
 import io.github.itokagimaru.loginBonusPL.loginBonus.PlayerLoginProgress;
 import org.bukkit.inventory.ItemStack;
 
 public class LoginBonusService {
-
+    ExecutorService dbExecutor;//DAOから引っ張ってくるのもありかも...
     private final HikariDataSource dataSource;
     private final LoginBonusEventDAO eventDAO;
     private final RewardDAO rewardDAO;
     private final PlayerLoginDAO playerLoginDAO;
 
-    public LoginBonusService(HikariDataSource dataSource, LoginBonusEventDAO eventDAO, RewardDAO rewardDAO, PlayerLoginDAO playerLoginDAO) {
+    public LoginBonusService(ExecutorService dbExecutor, HikariDataSource dataSource, LoginBonusEventDAO eventDAO, RewardDAO rewardDAO, PlayerLoginDAO playerLoginDAO) {
+        this.dbExecutor = dbExecutor;
         this.dataSource = dataSource;
         this.eventDAO = eventDAO;
         this.rewardDAO = rewardDAO;
         this.playerLoginDAO = playerLoginDAO;
     }
 
-    public LoginBonusEvent createNewLoginBonusEvent() throws SQLException {
+    public CompletableFuture<LoginBonusEvent> createNewLoginBonusEvent() {
         String name = "new LoginBonus";
-        LocalDate startDate = LocalDate.now(ZoneId.of("Asia/Tokyo"));
-        LocalDate endDate = LocalDate.now(ZoneId.of("Asia/Tokyo")).plusDays(30);
-        int id = eventDAO.createEvent(name, startDate, endDate, false);
-        return new LoginBonusEvent(id, name, startDate, endDate, false, null);
+        LocalDate startDate = LocalDate.now();
+        LocalDate endDate = LocalDate.now().plusDays(30);
+        return eventDAO.createEvent(name, startDate, endDate, false).thenApply(id -> {
+            return new LoginBonusEvent(id, name, startDate, endDate, false, null);
+        });
     }
 
-    public LoginBonusEvent getEventWithRewards(int id) throws SQLException {
+    public CompletableFuture<LoginBonusEvent> getEventWithRewards(int id) {
+        return eventDAO.getEventById(id)
+                .thenCompose(baseEvent -> {
+                    if (baseEvent == null) {
+                        return CompletableFuture.completedFuture(null);
+                    }
 
-        LoginBonusEvent baseEvent = eventDAO.getEventById(id);
-        if (baseEvent == null) return null;
-
-        Map<Integer, List<ItemStack>> rewards =
-                rewardDAO.getRewardsByEventId(id);
-
-        return new LoginBonusEvent(
-                baseEvent.getId(),
-                baseEvent.getName(),
-                baseEvent.getStartDate(),
-                baseEvent.getEndDate(),
-                baseEvent.isActive(),
-                rewards
-        );
+                    return rewardDAO.getRewardsByEventId(id)
+                            .thenApply(rewards ->
+                                    new LoginBonusEvent(
+                                            baseEvent.getId(),
+                                            baseEvent.getName(),
+                                            baseEvent.getStartDate(),
+                                            baseEvent.getEndDate(),
+                                            baseEvent.isActive(),
+                                            rewards
+                                    )
+                            );
+                });
     }
 
-    public Map<Integer, LoginBonusEvent> getAllEvents() throws SQLException {
-        Map<Integer, LoginBonusEvent> returnEvents = new HashMap<>();
-        for (LoginBonusEvent baseEvent : eventDAO.getAllEvents()) {
-            int id = baseEvent.getId();
-            returnEvents.put(id, getEventWithRewards(id));
-        }
-        return returnEvents;
+    public CompletableFuture<Map<Integer, LoginBonusEvent>> getAllEvents() throws SQLException {
+        return eventDAO.getAllEvents()
+                .thenCompose(baseEvents -> {
+
+                    Map<Integer, CompletableFuture<LoginBonusEvent>> futureMap = new HashMap<>();
+
+                    for (LoginBonusEvent baseEvent : baseEvents) {
+                        int id = baseEvent.getId();
+                        futureMap.put(id, getEventWithRewards(id));
+                    }
+
+                    CompletableFuture<Void> allFutures =
+                            CompletableFuture.allOf(
+                                    futureMap.values()
+                                            .toArray(new CompletableFuture[0])
+                            );
+
+                    return allFutures.thenApply(v -> {
+                        Map<Integer, LoginBonusEvent> result = new HashMap<>();
+                        for (Map.Entry<Integer, CompletableFuture<LoginBonusEvent>> entry : futureMap.entrySet()) {
+                            result.put(entry.getKey(), entry.getValue().join());
+                        }
+                        return result;
+                    });
+                });
     }
 
-    public void updateAllEvents(List<LoginBonusEvent> events) throws SQLException {
+    public CompletableFuture<Void> updateAllEvents(List<LoginBonusEvent> events) {
 
-        try (Connection conn = dataSource.getConnection()) {
-            conn.setAutoCommit(false);
+        return CompletableFuture.runAsync(() -> {
 
-            for (LoginBonusEvent event : events) {
-                eventDAO.updateEvent(conn, event);// event情報のアップデートめそっと
-                for (Map.Entry<Integer, List<ItemStack>> entry : event.getRewards().entrySet()) {
+            try (Connection conn = dataSource.getConnection()) {
 
-                    int day = entry.getKey();
-                    List<ItemStack> items = entry.getValue();
+                conn.setAutoCommit(false);
 
-                    updateReward(conn, event.getId(), day, items);
+                try {
+                    for (LoginBonusEvent event : events) {
+
+                        eventDAO.updateEvent(conn, event);
+
+                        for (Map.Entry<Integer, List<ItemStack>> entry :
+                                event.getRewards().entrySet()) {
+
+                            int day = entry.getKey();
+                            List<ItemStack> items = entry.getValue();
+
+                            updateReward(conn, event.getId(), day, items);
+                        }
+                    }
+
+                    conn.commit();
+
+                } catch (Exception e) {
+                    conn.rollback();
+                    throw new CompletionException(e);
                 }
+
+            } catch (Exception e) {
+                throw new CompletionException(e);
             }
 
-            conn.commit();
-        }
+        });
     }
 
-    public void updateReward(Connection conn, int eventId, int day, List<ItemStack> items) throws SQLException {
-        rewardDAO.saveOrUpdateReward(conn, eventId, day, items);
+    public CompletableFuture<Void> updateReward(Connection conn, int eventId, int day, List<ItemStack> items) throws SQLException {
+        return rewardDAO.saveOrUpdateReward(conn, eventId, day, items);
     }
 
-    public void updateEventAndReward(LoginBonusEvent event) throws SQLException {
+    public CompletableFuture<Void> updateEventAndReward(LoginBonusEvent event) {
 
-        try (Connection conn = dataSource.getConnection()) {
-            conn.setAutoCommit(false);
-            try {
-                eventDAO.updateEvent(conn, event);
-                rewardDAO.deleteAllByEventId(conn, event.getId());
-                for (Map.Entry<Integer, List<ItemStack>> entry : event.getRewards().entrySet()) {
-                    rewardDAO.saveOrUpdateReward(
-                            conn,
-                            event.getId(),
-                            entry.getKey(),
-                            entry.getValue()
+        return CompletableFuture.runAsync(() -> {
+
+            try (Connection conn = dataSource.getConnection()) {
+
+                conn.setAutoCommit(false);
+
+                try {
+                    eventDAO.updateEvent(conn, event);
+
+                    rewardDAO.deleteAllByEventId(conn, event.getId());
+
+                    for (Map.Entry<Integer, List<ItemStack>> entry :
+                            event.getRewards().entrySet()) {
+
+                        rewardDAO.saveOrUpdateReward(
+                                conn,
+                                event.getId(),
+                                entry.getKey(),
+                                entry.getValue()
+                        );
+                    }
+
+                    conn.commit();
+
+                } catch (Exception e) {
+                    conn.rollback();
+                    throw new CompletionException(e);
+                }
+
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
+
+        }, dbExecutor);
+    }
+
+    public CompletableFuture<Void> deleteEventAndReward(LoginBonusEvent event) {
+
+        return CompletableFuture.runAsync(() -> {
+            int eventId = event.getId();
+            try (Connection conn = dataSource.getConnection()) {
+                conn.setAutoCommit(false);
+                try {
+                    rewardDAO.deleteAllByEventId(conn, eventId);
+                    eventDAO.deleteById(conn, eventId);
+
+                    conn.commit();
+                } catch (Exception e) {
+                    conn.rollback();
+                    throw new CompletionException(e);
+                }
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
+        }, dbExecutor);
+    }
+
+    public CompletableFuture<Void> createPlayerLogin(UUID playerUUID, LoginBonusEvent loginBonusEvent) {
+        return playerLoginDAO
+                .find(playerUUID, loginBonusEvent.getId())
+                .thenCompose(optional -> {
+
+                    if (optional.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+
+                    return playerLoginDAO.upsert(
+                            playerUUID,
+                            loginBonusEvent.getId(),
+                            LocalDate.now().minusDays(1),
+                            0,
+                            0
                     );
-                }
-
-                conn.commit();
-                return;
-
-            } catch (Exception e) {
-                conn.rollback();
-                throw e;
-            }
-        }
+                });
     }
 
-    public boolean deleteEventAndReward(LoginBonusEvent event) {
-        int eventId = event.getId();
-        try (Connection conn = dataSource.getConnection()) {
-
-            conn.setAutoCommit(false);
-
-            try {
-
-                rewardDAO.deleteAllByEventId(conn, eventId);
-                eventDAO.deleteById(conn, eventId);
-
-                conn.commit();
-                return true;
-
-            } catch (Exception e) {
-                conn.rollback();
-                return false;
-            }
-
-        } catch (SQLException e) {
-            return false;
-        }
+    public CompletableFuture<Optional<PlayerLoginProgress>> getPlayerLoginProgress(UUID playerUUID, LoginBonusEvent loginBonusEvent) {
+        return playerLoginDAO.find(playerUUID, loginBonusEvent.getId());
     }
 
-    public boolean createPlayerLogin(UUID playerUUID, LoginBonusEvent loginBonusEvent) throws SQLException {
-        PlayerLoginProgress playerLoginProgress = playerLoginDAO.find(playerUUID, loginBonusEvent.getId()).orElse(null);
-        if (playerLoginProgress != null) return false;
-        playerLoginDAO.upsert(playerUUID, loginBonusEvent.getId(), LocalDate.now().minusDays(1), 0,0);
-        return true;
+    public CompletableFuture<Void> updatePlayerLoginProgress(UUID playerUUID, PlayerLoginProgress playerLoginProgress) {
+        return playerLoginDAO.upsert(playerUUID, playerLoginProgress.getEventId(), playerLoginProgress.getLastLoginDate(), playerLoginProgress.getContinuousDays(),playerLoginProgress.getTotalLoginDays());
     }
 
-    public PlayerLoginProgress getPlayerLoginProgress(UUID playerUUID, LoginBonusEvent loginBonusEvent) throws SQLException {
-        PlayerLoginProgress playerLoginProgress = playerLoginDAO.find(playerUUID, loginBonusEvent.getId()).orElse(null);
-        if (playerLoginProgress != null) return playerLoginProgress;
-        if (createPlayerLogin(playerUUID, loginBonusEvent)) return getPlayerLoginProgress(playerUUID, loginBonusEvent);
-        throw new SQLException();
+    public CompletableFuture<Void> deletePlayerLogin(UUID playerUUID, LoginBonusEvent loginBonusEvent) {
+        return playerLoginDAO.deleteByUUIDAndEvent(playerUUID, loginBonusEvent.getId());
     }
 
-    public void updatePlayerLoginProgress(UUID playerUUID, PlayerLoginProgress playerLoginProgress) throws SQLException {
-        playerLoginDAO.upsert(playerUUID, playerLoginProgress.getEventId(), playerLoginProgress.getLastLoginDate(), playerLoginProgress.getContinuousDays(),playerLoginProgress.getTotalLoginDays());
+    public CompletableFuture<Void> deletePlayerLogin(UUID playerUUID) {
+        return playerLoginDAO.deleteByUUID(playerUUID);
     }
 
-    public boolean deletePlayerLogin(UUID playerUUID, LoginBonusEvent loginBonusEvent) throws SQLException {
-        PlayerLoginProgress playerLoginProgress = playerLoginDAO.find(playerUUID, loginBonusEvent.getId()).orElse(null);
-        if (playerLoginProgress == null) return false;
-        playerLoginDAO.deleteByUUIDAndEvent(playerUUID, loginBonusEvent.getId());
-        return true;
-    }
-
-    public boolean deletePlayerLogin(UUID playerUUID) throws SQLException {
-        playerLoginDAO.deleteByUUID(playerUUID);
-        return true;
-    }
-
-    public boolean deleteAllPlayerLogin(int eventID) throws SQLException {
-        playerLoginDAO.deleteByEvent(eventID);
-        return true;
+    public CompletableFuture<Void> deleteAllPlayerLogin(int eventID) {
+        return playerLoginDAO.deleteByEvent(eventID);
     }
 }
 

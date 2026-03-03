@@ -4,6 +4,7 @@ import io.github.itokagimaru.loginBonusPL.MySQL.DAO.ConnectionLogDAO;
 
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 public class AltAccountService {
     ConnectionLogDAO connectionLogDAO;
@@ -14,7 +15,7 @@ public class AltAccountService {
         this.enabled = enable;
     }
 
-    public List<UUID> getAltAccountList(UUID playerUUID) throws SQLException {
+    public CompletableFuture<List<UUID>> getAltAccountList(UUID playerUUID) {
         return connectionLogDAO.findIAltAccountByUuid(playerUUID);
     }
 

@@ -7,6 +7,7 @@ import org.bukkit.plugin.Plugin;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 public class LoginBonusManager {
     private Map<Integer,LoginBonusEvent> loginBonusList;
@@ -19,46 +20,62 @@ public class LoginBonusManager {
         this.dataSource = dataSource;
         this.loginBonusService = loginBonusService;
         this.altAccountService = altAccountService;
-        loginBonusList = loginBonusService.getAllEvents();
+        loginBonusList = loginBonusService.getAllEvents().join();//サーバー起動時のみの挙動の為 joinで待ってもいい
         this.plugin = plugin;
     }
 
-    public void createNewLoginBonus() throws SQLException {
-        LoginBonusEvent newEvent = loginBonusService.createNewLoginBonusEvent();
-        loginBonusList.put(newEvent.getId(), newEvent);
+    public CompletableFuture<Void> createNewLoginBonus() {
+        return loginBonusService.createNewLoginBonusEvent().thenAccept(newEvent -> {
+            loginBonusList.put(newEvent.getId(), newEvent);
+        });
     }
 
-    public void saveLoginBonus(LoginBonusEvent loginBonus) throws SQLException {
-        loginBonusService.updateEventAndReward(loginBonus);
-        loginBonusList.put(loginBonus.getId(), loginBonus);
+    public CompletableFuture<Void> saveLoginBonus(LoginBonusEvent loginBonus) {
+        return loginBonusService.updateEventAndReward(loginBonus).thenRun(() -> {
+            loginBonusList.put(loginBonus.getId(), loginBonus);
+        });
     }
 
-    public LoginBonusEvent loadLoginBonusFromDB(int eventId) throws SQLException {
+    public CompletableFuture<LoginBonusEvent> loadLoginBonusFromDB(int eventId) {
         return loginBonusService.getEventWithRewards(eventId);
     }
 
-    public void deleteLoginBonus(LoginBonusEvent event) throws SQLException {
-        loginBonusService.deleteEventAndReward(event);
-        loginBonusList.remove(event.getId());
+    public CompletableFuture<Void> deleteLoginBonus(LoginBonusEvent event) {
+        return loginBonusService.deleteEventAndReward(event).thenRun(() -> {
+            loginBonusList.remove(event.getId());
+        });
+
     }
 
-    public PlayerLoginProgress getOrCreatePlayerLoginProgress(UUID playerUUID, LoginBonusEvent event) throws SQLException {
-        return loginBonusService.getPlayerLoginProgress(playerUUID, event);
+    public CompletableFuture<PlayerLoginProgress>
+    getOrCreatePlayerLoginProgress(UUID playerUUID, LoginBonusEvent event) {
+
+        return loginBonusService.getPlayerLoginProgress(playerUUID, event)
+                .thenCompose(optional -> {
+                    if (optional.isPresent()) {
+                        return CompletableFuture.completedFuture(optional.get());
+                    }
+                    return loginBonusService.createPlayerLogin(playerUUID, event)
+                            .thenCompose(v ->
+                                    loginBonusService.getPlayerLoginProgress(playerUUID, event)
+                            )
+                            .thenApply(Optional::get);
+                });
     }
 
-    public void updatePlayerLoginProgress(UUID playerUUID, PlayerLoginProgress playerLoginProgress) throws SQLException {
-        loginBonusService.updatePlayerLoginProgress(playerUUID, playerLoginProgress);
+    public CompletableFuture<Void> updatePlayerLoginProgress(UUID playerUUID, PlayerLoginProgress playerLoginProgress) {
+        return loginBonusService.updatePlayerLoginProgress(playerUUID, playerLoginProgress);
     }
 
-    public boolean deletePlayerLoginProgress(UUID playerUUID, LoginBonusEvent event) throws SQLException {
+    public CompletableFuture<Void> deletePlayerLoginProgress(UUID playerUUID, LoginBonusEvent event) {
         return loginBonusService.deletePlayerLogin(playerUUID, event);
     }
 
-    public boolean deletePlayerLoginProgress(UUID playerUUID) throws SQLException {
+    public CompletableFuture<Void> deletePlayerLoginProgress(UUID playerUUID) {
         return loginBonusService.deletePlayerLogin(playerUUID);
     }
 
-    public boolean deleteAllPlayerLoginProgress(int eventId) throws SQLException {
+    public CompletableFuture<Void> deleteAllPlayerLoginProgress(int eventId) {
         return loginBonusService.deleteAllPlayerLogin(eventId);
     }
 
@@ -66,18 +83,32 @@ public class LoginBonusManager {
         return altAccountService.isEnabled();
     }
 
-    public List<UUID> getAltAccounts(UUID playerUUID) throws SQLException {
+    public CompletableFuture<List<UUID>> getAltAccounts(UUID playerUUID) {
         return altAccountService.getAltAccountList(playerUUID);
     }
 
-    public List<PlayerLoginProgress> getAltAccountLoginProgress(UUID playerUUID, LoginBonusEvent event) throws SQLException {
-        List<PlayerLoginProgress> progresses = new ArrayList<>();
-        List<UUID> altAccounts = getAltAccounts(playerUUID);
-        if (!altAccounts.contains(playerUUID)) altAccounts.add(playerUUID);
-        for (UUID altAccountUUID : altAccounts) {
-            progresses.add(getOrCreatePlayerLoginProgress(altAccountUUID, event));
-        }
-        return progresses;
+    public CompletableFuture<List<PlayerLoginProgress>>
+    getAltAccountLoginProgress(UUID playerUUID, LoginBonusEvent event) {
+        return getAltAccounts(playerUUID)
+                .thenCompose(altAccounts -> {
+
+                    if (!altAccounts.contains(playerUUID)) {
+                        altAccounts.add(playerUUID);
+                    }
+
+                    List<CompletableFuture<PlayerLoginProgress>> futures =
+                            altAccounts.stream()
+                                    .map(uuid -> getOrCreatePlayerLoginProgress(uuid, event))
+                                    .toList();
+
+                    return CompletableFuture
+                            .allOf(futures.toArray(new CompletableFuture[0]))
+                            .thenApply(v ->
+                                    futures.stream()
+                                            .map(CompletableFuture::join)
+                                            .toList()
+                            );
+                });
     }
 
     public LocalDate getLastLoginDate(List<PlayerLoginProgress> loginProgresses) {
@@ -115,8 +146,11 @@ public class LoginBonusManager {
         return loginBonusList;
     }
 
-
     public void outPutError(String message) {
         plugin.getLogger().warning(message);
+    }
+
+    public Plugin getPlugin() {
+        return plugin;
     }
 }

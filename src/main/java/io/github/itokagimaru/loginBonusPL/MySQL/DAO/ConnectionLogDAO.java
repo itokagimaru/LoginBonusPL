@@ -24,8 +24,7 @@ public class ConnectionLogDAO {
         this.tableName = tableName;
         this.uuidColumn = uuidColumn;
         this.ipColumn = ipColumn;
-
-        validateSchema();
+        validateSchema().join();
     }
 
     /**

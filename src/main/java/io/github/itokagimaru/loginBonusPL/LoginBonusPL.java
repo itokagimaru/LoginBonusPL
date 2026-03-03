@@ -78,23 +78,22 @@ public final class LoginBonusPL extends JavaPlugin {
                 altAccountPassword,
                 altAccountPoolSize
         );
+        // 非同期処理のためのexecutorの作成
+        dbExecutor = Executors.newFixedThreadPool(4);
+
 
         // テーブル生成
         try {
             new LoginBonusTableInitializer(
+                    dbExecutor,
                     loginBonusHikariManager.getDataSource()
-            ).initialize();
-
+            ).initialize().join();
             getLogger().info("データベース接続 & テーブル初期化完了");
-
         } catch (Exception e) {
-            getLogger().severe("データベース初期化失敗");
-            e.printStackTrace();
+            getLogger().severe("データベース初期化失敗: " + e.getMessage());
             getServer().getPluginManager().disablePlugin(this);
+            return;
         }
-
-        // 非同期処理のためのexecutorの作成
-        dbExecutor = Executors.newFixedThreadPool(4);
 
         // サブ垢対策用のDAO+クラスの作成
         AltAccountService altAccountService = new AltAccountService(null, false);//私のサーバではサブ垢対策用のDBにアクセスできないので他機能テスト時にエラーを吐くためon/off機能が欲しかった
@@ -113,7 +112,7 @@ public final class LoginBonusPL extends JavaPlugin {
             LoginBonusEventDAO loginBonusEventDAO = new LoginBonusEventDAO(dbExecutor, loginBonusHikariManager.getDataSource());
             RewardDAO eventRewardDAO = new RewardDAO(dbExecutor,loginBonusHikariManager.getDataSource());
             PlayerLoginDAO playerLoginDAO = new PlayerLoginDAO(dbExecutor,loginBonusHikariManager.getDataSource());
-            LoginBonusService loginBonusService = new LoginBonusService(loginBonusHikariManager.getDataSource(), loginBonusEventDAO, eventRewardDAO, playerLoginDAO);
+            LoginBonusService loginBonusService = new LoginBonusService(dbExecutor, loginBonusHikariManager.getDataSource(), loginBonusEventDAO, eventRewardDAO, playerLoginDAO);
             loginBonusManager = new LoginBonusManager(loginBonusHikariManager.getDataSource(), loginBonusService, altAccountService, this);
         } catch (SQLException e) {
             getLogger().warning("LoginBonusDataBase への接続に失敗: " + e.getMessage());
@@ -135,7 +134,7 @@ public final class LoginBonusPL extends JavaPlugin {
 
         //command の登録
         if (loginBonusManager != null) {
-            registerCommandWithTabCompleter("loginbonusop", new LoginBonusOPCommand(loginBonusManager, luckPerms), new LoginBonusOPCommand(loginBonusManager, luckPerms));
+            registerCommandWithTabCompleter("loginbonusop", new LoginBonusOPCommand(loginBonusManager), new LoginBonusOPCommand(loginBonusManager));
             registerCommandWithTabCompleter("loginbonus", new LoginBonusCommand(loginBonusManager, altAccountService), new LoginBonusCommand(loginBonusManager, altAccountService));
         }
 

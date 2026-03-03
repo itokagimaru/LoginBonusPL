@@ -14,7 +14,6 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -93,13 +92,19 @@ public class BonusEventManager extends BaseGuiHolder {
             return;
         }
         loginEvent.setActive(iconID != IconID.ACTIVE_EVENT);
-        try {
-            loginBonusManager.saveLoginBonus(loginEvent);
-            player.sendMessage(Component.text(loginEvent.getName() + "の activeを " + loginEvent.isActive() + " に設定しました"));
-        } catch (SQLException e) {
-            player.sendMessage(Component.text("イベントのアクティブ設定に失敗しました: ").color(NamedTextColor.RED).append(Component.text(e.getMessage()).color(NamedTextColor.WHITE)) );
-        }
-        setup();
+        loginBonusManager.saveLoginBonus(loginEvent).thenRun(() -> {
+            Bukkit.getScheduler().runTask(LoginBonusPL.getInstance(), () -> {
+                player.sendMessage(Component.text(loginEvent.getName() + "の activeを " + loginEvent.isActive() + " に設定しました"));
+                setup();
+            });
+        }).exceptionally(ex -> {
+            Bukkit.getScheduler().runTask(LoginBonusPL.getInstance(), () -> {
+                player.sendMessage(Component.text("イベントのアクティブ設定に失敗しました: ").color(NamedTextColor.RED).append(Component.text(ex.getMessage()).color(NamedTextColor.WHITE)) );
+                loginBonusManager.outPutError(ex.getMessage());
+                setup();
+            });
+            return null;
+        });
     }
 
     @Override
