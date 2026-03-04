@@ -191,6 +191,11 @@ public class LoginBonusEvent {
     private void giveRewardItem(int day, Player player) {
         if (this.getMaxDayCount() < day) return;
         List<ItemStack> items = rewards.get(day);
+        if (items == null || items.isEmpty()) {
+            player.sendMessage(Component.text("[LoginBonus:" + this.name + " / " + day + "日目] ").color(NamedTextColor.YELLOW).append(Component.text("何もないみたいだ...")));
+            player.sendMessage(Component.text("[LoginBonus:" + this.name + " / " + day + "日目] ").color(NamedTextColor.YELLOW).append(Component.text("明日に期待しよう")));
+            return;
+        }
         if (countEmptySlots(player) < items.size()) {
             player.sendMessage(Component.text("インベントリに空きがありません").color(NamedTextColor.RED));
             player.sendMessage(Component.text("空きスロットを " + items.size() + " スロット以上確保してください").color(NamedTextColor.RED));
