@@ -20,7 +20,7 @@ public class LoginBonusRewardTable {
         return CompletableFuture.runAsync(() -> {
             String sql = """
             CREATE TABLE IF NOT EXISTS login_bonus_reward (
-                value INT AUTO_INCREMENT PRIMARY KEY,
+                id INT AUTO_INCREMENT PRIMARY KEY,
                 event_id INT NOT NULL,
                 day INT NOT NULL,
                 reward_data TEXT NOT NULL,

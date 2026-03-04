@@ -171,7 +171,21 @@ public class LoginBonusEvent {
                         return CompletableFuture.completedFuture(null);
                     }
                     progress.addTotalLoginDays();
+                    int betweenDay;
+                    try {
+                        betweenDay = Math.toIntExact(
+                                ChronoUnit.DAYS.between(progress.getLastLoginDate(), LocalDate.now())
+                        );
+                    } catch (ArithmeticException e) {
+                        betweenDay = 2;
+                    }
+                    if(betweenDay <= 1){
+                        progress.addContinuousDays();
+                    } else {
+                        progress.setContinuousDays(0);
+                    }
                     progress.setLastLoginDate(LocalDate.now());
+
                     return manager.updatePlayerLoginProgress(player.getUniqueId(), progress).thenRun(() ->
                             Bukkit.getScheduler().runTask(manager.getPlugin(), () ->
                                     giveRewardItem(progress.getTotalLoginDays(), player)
@@ -191,6 +205,11 @@ public class LoginBonusEvent {
     private void giveRewardItem(int day, Player player) {
         if (this.getMaxDayCount() < day) return;
         List<ItemStack> items = rewards.get(day);
+        if (items == null || items.isEmpty()) {
+            player.sendMessage(Component.text("[LoginBonus:" + this.name + " / " + day + "日目] ").color(NamedTextColor.YELLOW).append(Component.text("何もないみたいだ...")));
+            player.sendMessage(Component.text("[LoginBonus:" + this.name + " / " + day + "日目] ").color(NamedTextColor.YELLOW).append(Component.text("明日に期待しよう")));
+            return;
+        }
         if (countEmptySlots(player) < items.size()) {
             player.sendMessage(Component.text("インベントリに空きがありません").color(NamedTextColor.RED));
             player.sendMessage(Component.text("空きスロットを " + items.size() + " スロット以上確保してください").color(NamedTextColor.RED));
