@@ -171,7 +171,21 @@ public class LoginBonusEvent {
                         return CompletableFuture.completedFuture(null);
                     }
                     progress.addTotalLoginDays();
+                    int betweenDay;
+                    try {
+                        betweenDay = Math.toIntExact(
+                                ChronoUnit.DAYS.between(progress.getLastLoginDate(), LocalDate.now())
+                        );
+                    } catch (ArithmeticException e) {
+                        betweenDay = 2;
+                    }
+                    if(betweenDay <= 1){
+                        progress.addContinuousDays();
+                    } else {
+                        progress.setContinuousDays(0);
+                    }
                     progress.setLastLoginDate(LocalDate.now());
+
                     return manager.updatePlayerLoginProgress(player.getUniqueId(), progress).thenRun(() ->
                             Bukkit.getScheduler().runTask(manager.getPlugin(), () ->
                                     giveRewardItem(progress.getTotalLoginDays(), player)
